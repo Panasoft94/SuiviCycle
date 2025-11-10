@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dashboard_screen.dart';
 import 'settings_screen.dart';
 import 'couple_mode_screen.dart';
+import 'aide_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -50,12 +51,24 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       appBar: AppBar(
         leading: Icon(_widgetIcons[_tabController.index]),
         title: Text(_widgetTitles[_tabController.index]),
         centerTitle: true,
         backgroundColor: Colors.brown,
+        foregroundColor: Colors.white, // This ensures title and icons are white
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.help_outline),
+            tooltip: 'Aide',
+            onPressed: () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const AideScreen()));
+            },
+          ),
+        ],
       ),
       body: TabBarView(
         controller: _tabController,
@@ -64,7 +77,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       bottomNavigationBar: Container(
         margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
+          color: isDarkMode ? Colors.white : Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(25),
           boxShadow: [
             BoxShadow(

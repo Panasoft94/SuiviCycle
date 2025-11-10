@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../database/database_helper.dart';
 import '../models/settings.dart';
+import '../services/backup_service.dart';
+import '../main.dart'; // Import main.dart to access MyAppState
+import 'aide_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -11,6 +14,7 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final DatabaseHelper _dbHelper = DatabaseHelper();
+  final BackupService _backupService = BackupService(); 
   late Future<AppSettings> _settingsFuture;
 
   @override
@@ -46,7 +50,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Text('Cycle', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             Card(
-              elevation: 2,
+              elevation: 4, // Increased elevation
               child: _buildCycleLengthTile(settings),
             ),
             const SizedBox(height: 24),
@@ -54,7 +58,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Text('Notifications', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             Card(
-              elevation: 2,
+              elevation: 4, // Increased elevation
               child: Column(
                 children: [
                   _buildNotificationTile('Notifications des règles', settings.notifyPeriod, (value) {
@@ -84,8 +88,91 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Text('Apparence', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             Card(
-              elevation: 2,
+              elevation: 4, // Increased elevation
               child: _buildThemeTile(settings),
+            ),
+            const SizedBox(height: 24),
+
+            Text('Données', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Card(
+              elevation: 4, // Increased elevation
+              child: Column(
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.backup_outlined),
+                    title: const Text('Sauvegarder les données'),
+                    onTap: () => _backupService.backupDatabase(context),
+                  ),
+                  const Divider(indent: 16, endIndent: 16),
+                  ListTile(
+                    leading: const Icon(Icons.restore_page_outlined),
+                    title: const Text('Restaurer les données'),
+                    onTap: () => _showRestoreConfirmation(context),
+                  ),
+                  const Divider(indent: 16, endIndent: 16),
+                  ListTile(
+                    leading: Icon(Icons.delete_forever_outlined, color: Colors.red[700]),
+                    title: Text('Réinitialiser l\'application', style: TextStyle(color: Colors.red[700])),
+                    onTap: () => _showResetConfirmation(context),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showRestoreConfirmation(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Restaurer les données ?'),
+          content: const Text(
+              'Attention ! Cela remplacera toutes les données actuelles par celles de la sauvegarde. Cette action est irréversible.'),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Annuler'),
+              onPressed: () => Navigator.of(dialogContext).pop(),
+            ),
+            TextButton(
+              child: const Text('Restaurer', style: TextStyle(color: Colors.red)),
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+                _backupService.restoreDatabase(context);
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+  
+  void _showResetConfirmation(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Réinitialiser l\'application ?'),
+          content: const Text(
+              'Attention ! Toutes vos données (cycles, symptômes, notes) seront définitivement effacées. Cette action est irréversible.'),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Annuler'),
+              onPressed: () => Navigator.of(dialogContext).pop(),
+            ),
+            TextButton(
+              child: const Text('Réinitialiser', style: TextStyle(color: Colors.red)),
+              onPressed: () async {
+                Navigator.of(dialogContext).pop();
+                await _dbHelper.deleteDatabase();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Application réinitialisée. Veuillez redémarrer.')),
+                );
+              },
             ),
           ],
         );
@@ -138,7 +225,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           notifyOvulation: settings.notifyOvulation,
           theme: newTheme,
         ));
-        // TODO: Implement theme switching logic in main.dart
+        MyApp.of(context).changeTheme(newTheme == 'dark' ? ThemeMode.dark : ThemeMode.light);
       },
     );
   }

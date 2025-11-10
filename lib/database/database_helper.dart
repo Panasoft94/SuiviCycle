@@ -11,16 +11,31 @@ class DatabaseHelper {
   DatabaseHelper._internal();
 
   static Database? _database;
-  static const _dbVersion = 6; // Database version
+  static const _dbName = 'cycles.db';
+  static const _dbVersion = 6;
 
   Future<Database> get database async {
-    if (_database != null) return _database!;
+    if (_database != null && _database!.isOpen) return _database!;
     _database = await _initDB();
     return _database!;
   }
 
+  Future<void> closeDB() async {
+    if (_database != null && _database!.isOpen) {
+      await _database!.close();
+      _database = null;
+    }
+  }
+  
+  Future<void> deleteDatabase() async {
+    final dbPath = await getDatabasesPath();
+    final path = join(dbPath, _dbName);
+    await closeDB();
+    await databaseFactory.deleteDatabase(path);
+  }
+
   Future<Database> _initDB() async {
-    String path = join(await getDatabasesPath(), 'cycles.db');
+    final path = join(await getDatabasesPath(), _dbName);
     return await openDatabase(
       path,
       version: _dbVersion,
@@ -83,7 +98,6 @@ class DatabaseHelper {
   }
 
   Future _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    // A simple, destructive migration for development.
     await db.execute('DROP TABLE IF EXISTS cycles');
     await db.execute('DROP TABLE IF EXISTS symptoms');
     await db.execute('DROP TABLE IF EXISTS notes');
