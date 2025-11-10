@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:cycles/screens/home_screen.dart';
 import 'package:cycles/database/database_helper.dart';
 import 'package:cycles/models/settings.dart';
+import 'package:cycles/services/notification_service.dart'; // Import the service
 
-void main() {
+void main() async { // Make main async
+  WidgetsFlutterBinding.ensureInitialized(); // Ensure bindings are initialized
+  await NotificationService().init(); // Initialize the notification service
   runApp(const MyApp());
 }
 
@@ -46,13 +49,11 @@ class _MyAppState extends State<MyApp> {
       theme: ThemeData(
         primarySwatch: Colors.brown,
         brightness: Brightness.light,
-        // You can customize the light theme further here
       ),
       debugShowCheckedModeBanner: false,
       darkTheme: ThemeData(
         primarySwatch: Colors.brown,
         brightness: Brightness.dark,
-        // You can customize the dark theme further here
       ),
       themeMode: _themeMode,
       home: const HomeScreen(),

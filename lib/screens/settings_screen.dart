@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../database/database_helper.dart';
 import '../models/settings.dart';
 import '../services/backup_service.dart';
+import '../services/notification_service.dart';
 import '../main.dart'; // Import main.dart to access MyAppState
 import 'aide_screen.dart';
 
@@ -15,6 +16,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final DatabaseHelper _dbHelper = DatabaseHelper();
   final BackupService _backupService = BackupService(); 
+  final NotificationService _notificationService = NotificationService();
   late Future<AppSettings> _settingsFuture;
 
   @override
@@ -28,6 +30,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() {
       _settingsFuture = Future.value(settings);
     });
+
+    // Update notifications based on new settings
+    if (!settings.notifyPeriod) _notificationService.cancelNotification(1);
+    if (!settings.notifyOvulation) _notificationService.cancelNotification(0);
+
+    // You might want to re-schedule notifications here if they are enabled
+    // but the logic is currently in the dashboard screen.
   }
 
   @override
@@ -50,7 +59,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Text('Cycle', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             Card(
-              elevation: 4, // Increased elevation
+              elevation: 4, 
               child: _buildCycleLengthTile(settings),
             ),
             const SizedBox(height: 24),
@@ -58,7 +67,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Text('Notifications', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             Card(
-              elevation: 4, // Increased elevation
+              elevation: 4, 
               child: Column(
                 children: [
                   _buildNotificationTile('Notifications des règles', settings.notifyPeriod, (value) {
@@ -88,7 +97,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Text('Apparence', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             Card(
-              elevation: 4, // Increased elevation
+              elevation: 4, 
               child: _buildThemeTile(settings),
             ),
             const SizedBox(height: 24),
@@ -96,7 +105,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Text('Données', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             Card(
-              elevation: 4, // Increased elevation
+              elevation: 4, 
               child: Column(
                 children: [
                   ListTile(

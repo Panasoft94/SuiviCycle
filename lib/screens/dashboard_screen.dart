@@ -5,6 +5,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import '../database/database_helper.dart';
 import '../models/cycle.dart';
 import '../models/settings.dart';
+import '../services/notification_service.dart'; // Import notification service
 import 'symptom_screen.dart';
 import 'cycle_history_screen.dart';
 import 'prediction_details_screen.dart';
@@ -27,6 +28,7 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProviderStateMixin {
   final DatabaseHelper _dbHelper = DatabaseHelper();
+  final NotificationService _notificationService = NotificationService(); // Instantiate notification service
   Cycle? _currentCycle;
   int _currentDayOfCycle = 0;
   late Future<AppSettings> _settingsFuture;
@@ -114,6 +116,25 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       );
       await _dbHelper.updateCycle(updatedCycle);
       _currentCycle = updatedCycle;
+
+      // Cancel old notifications and schedule new ones based on settings
+      await _notificationService.cancelAllNotifications();
+      if (settings.notifyOvulation && ovulationDate != null) {
+        _notificationService.scheduleNotification(
+          id: 0,
+          title: 'Ovulation Bientôt',
+          body: 'Votre ovulation est prévue pour aujourd\'hui. C\'est le début de votre fenêtre de fertilité.',
+          scheduledDate: ovulationDate,
+        );
+      }
+      if (settings.notifyPeriod && expectedPeriod != null) {
+        _notificationService.scheduleNotification(
+          id: 1,
+          title: 'Règles en Approche',
+          body: 'Vos règles sont prévues dans 2 jours.',
+          scheduledDate: expectedPeriod.subtract(const Duration(days: 2)),
+        );
+      }
     }
   }
 
@@ -131,7 +152,6 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 100.0),
         children: [
-          _buildDueDateNotification(),
           if (_currentCycle != null) _buildCycleInfoCard() else _buildNoCycleCard(),
           const SizedBox(height: 16),
           _buildFeatureTiles(),
@@ -140,57 +160,23 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     );
   }
   
-  Widget _buildDueDateNotification() {
-    if (_currentCycle != null && _currentCycle!.expectedPeriod != null) {
-      final now = DateTime.now();
-      final difference = _currentCycle!.expectedPeriod!.difference(now).inDays;
-
-      if (difference >= -2 && difference <= 2) { 
-        String dayString = "imminentes";
-        if (difference == 0) {
-          dayString = "aujourd'hui";
-        } else if (difference == 1) {
-          dayString = "demain";
-        } else if (difference > 1) {
-          dayString = "dans $difference jours";
-        }
-
-        return Container(
-          padding: const EdgeInsets.all(12),
-          margin: const EdgeInsets.only(bottom: 16),
-          decoration: BoxDecoration(
-            color: Colors.pink[50],
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Row(
-            children: [
-              const Icon(Icons.info_outline, color: Colors.pinkAccent),
-              const SizedBox(width: 10),
-              Expanded(child: Text("Vos prochaines règles sont attendues $dayString.")),
-            ],
-          ),
-        );
-      }
-    }
-    return const SizedBox.shrink();
-  }
 
   Widget _buildCycleInfoCard() {
     String phaseInfo = _currentCycle?.phase?.capitalize() ?? 'N/A';
-     String expectedPeriodDate = _currentCycle?.expectedPeriod != null
-        ? 'Prochaines règles: ${DateFormat('dd/MM/yyyy', 'fr_FR').format(_currentCycle!.expectedPeriod!)}'
-        : 'Estimation en attente.';
     String ovulationDateInfo = _currentCycle?.ovulationDate != null
         ? 'Ovulation estimée: ${DateFormat('dd/MM/yyyy', 'fr_FR').format(_currentCycle!.ovulationDate!)}'
         : 'Cycle trop court pour estimer.';
 
-    // Handle future cycle display
     if (_currentDayOfCycle < 1) {
       final daysUntilStart = -_currentDayOfCycle + 1;
       String countdownText = "Commence dans $daysUntilStart jours";
       if (daysUntilStart == 1) {
         countdownText = "Commence demain";
       }
+      
+      String expectedPeriodDate = _currentCycle?.expectedPeriod != null
+        ? DateFormat('d MMM yyyy', 'fr_FR').format(_currentCycle!.expectedPeriod!)
+        : 'N/A';
 
       return FadeTransition(
         opacity: _fadeAnimation,
@@ -212,7 +198,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                   ListTile(
                     leading: const Icon(Icons.calendar_today_outlined, color: Colors.brown, size: 30),
                     title: Text('Fin de cycle estimée', style: Theme.of(context).textTheme.titleMedium),
-                    subtitle: Text(expectedPeriodDate.replaceFirst('Prochaines règles: ', '')),
+                    subtitle: Text(expectedPeriodDate),
                   ),
                   ListTile(
                     leading: const Icon(Icons.favorite_border, color: Colors.pinkAccent, size: 30),
