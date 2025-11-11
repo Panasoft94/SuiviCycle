@@ -5,75 +5,73 @@ import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:android_intent_plus/android_intent.dart';
+import 'package:flutter_local_notifications_platform_interface/flutter_local_notifications_platform_interface.dart';
 
 class NotificationService {
-  static final NotificationService _notificationService = NotificationService._internal();
-
-  factory NotificationService() {
-    return _notificationService;
-  }
-
+  static final NotificationService _instance = NotificationService._internal();
+  factory NotificationService() => _instance;
   NotificationService._internal();
 
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+  bool _isReady = false;
+  bool get isReady => _isReady;
 
   Future<void> init() async {
-    tz.initializeTimeZones();
+    try {
+      tz.initializeTimeZones();
 
-    const AndroidInitializationSettings androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+      const androidSettings = AndroidInitializationSettings('@mipmap/launch_icon');
+      const initializationSettings = InitializationSettings(android: androidSettings);
 
-    const InitializationSettings initializationSettings = InitializationSettings(
-      android: androidSettings,
-    );
+      await flutterLocalNotificationsPlugin.initialize(
+        initializationSettings,
+        onDidReceiveNotificationResponse: (NotificationResponse response) {
+          if (kDebugMode) {
+            print('Notification tap: ${response.payload}');
+          }
+        },
+      );
 
-    await flutterLocalNotificationsPlugin.initialize(
-      initializationSettings,
-      onDidReceiveNotificationResponse: (NotificationResponse response) {
-        if (kDebugMode) {
-          print('Notification tap: ${response.payload}');
-        }
-      },
-    );
+      await _requestPermissions();
+      await _checkExactAlarmPermission();
 
-    await _requestPermissions();
-    await _checkExactAlarmPermission();
+      _isReady = true;
+      if (kDebugMode) print('✅ NotificationService prêt');
+    } catch (e, stack) {
+      debugPrint('❌ Erreur init NotificationService: $e');
+      debugPrintStack(stackTrace: stack);
+    }
   }
 
   Future<void> _requestPermissions() async {
-    if (Platform.isAndroid) {
-      final AndroidFlutterLocalNotificationsPlugin? androidImplementation =
-          flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>();
-      if (androidImplementation != null) {
-        await androidImplementation.requestNotificationsPermission();
+    try {
+      if (Platform.isAndroid) {
+        final androidImpl = flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+        await androidImpl?.requestNotificationsPermission();
+      } else if (Platform.isIOS) {
+        final iosImpl = flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
+        await iosImpl?.requestPermissions(alert: true, badge: true, sound: true);
       }
-    } else if (Platform.isIOS) {
-      await flutterLocalNotificationsPlugin
-          .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>()
-          ?.requestPermissions(
-            alert: true,
-            badge: true,
-            sound: true,
-          );
+    } catch (e) {
+      debugPrint('❌ Erreur permissions: $e');
     }
   }
 
   Future<void> _checkExactAlarmPermission() async {
-    if (Platform.isAndroid) {
-      final androidInfo = await DeviceInfoPlugin().androidInfo;
-      if (androidInfo.version.sdkInt >= 31) {
-        final AndroidFlutterLocalNotificationsPlugin? androidImplementation =
-            flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
-                AndroidFlutterLocalNotificationsPlugin>();
-
-        final bool? granted = await androidImplementation?.canScheduleExactNotifications();
-        if (granted != null && !granted) {
-          const intent = AndroidIntent(
-            action: 'android.settings.REQUEST_SCHEDULE_EXACT_ALARM',
-          );
-          await intent.launch();
+    try {
+      if (Platform.isAndroid) {
+        final androidInfo = await DeviceInfoPlugin().androidInfo;
+        if (androidInfo.version.sdkInt >= 31) {
+          final androidImpl = flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+          final granted = await androidImpl?.canScheduleExactNotifications();
+          if (granted != null && !granted) {
+            const intent = AndroidIntent(action: 'android.settings.REQUEST_SCHEDULE_EXACT_ALARM');
+            await intent.launch();
+          }
         }
       }
+    } catch (e) {
+      debugPrint('❌ Erreur exact alarm permission: $e');
     }
   }
 
@@ -82,21 +80,26 @@ class NotificationService {
     required String title,
     required String body,
     required DateTime scheduledDate,
-    bool repeatDaily = false, // Unified parameter for repetition
+    bool repeatDaily = false,
   }) async {
-    final tz.TZDateTime scheduledTZDate = tz.TZDateTime(
+    if (!_isReady) {
+      if (kDebugMode) print('❌ Service non prêt. Notification ignorée.');
+      return;
+    }
+
+    final scheduledTZDate = tz.TZDateTime(
       tz.local,
       scheduledDate.year,
       scheduledDate.month,
       scheduledDate.day,
-      9, // Always schedule for 9 AM for consistency
+      9,
     );
 
-    const NotificationDetails notificationDetails = NotificationDetails(
+    const notificationDetails = NotificationDetails(
       android: AndroidNotificationDetails(
         'cycle_channel_id',
         'Cycle Notifications',
-        channelDescription: 'Notifications about your cycle.',
+        channelDescription: 'Notifications liées au suivi de cycle.',
         importance: Importance.max,
         priority: Priority.high,
       ),
@@ -113,28 +116,44 @@ class NotificationService {
         uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
         matchDateTimeComponents: repeatDaily ? DateTimeComponents.time : null,
       );
-
-      if (kDebugMode) {
-        print('✅ Notification #${id} scheduled for $scheduledTZDate, repeating: $repeatDaily');
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('❌ Erreur lors de la planification de la notification #${id}: $e');
-      }
+      if (kDebugMode) print('✅ Notification #$id planifiée pour $scheduledTZDate');
+    } catch (e, stack) {
+      debugPrint('❌ Erreur planification notification #$id: $e');
+      debugPrintStack(stackTrace: stack);
     }
   }
 
   Future<void> cancelNotification(int id) async {
-    await flutterLocalNotificationsPlugin.cancel(id);
-    if (kDebugMode) {
-      print('🔔 Notification #${id} canceled.');
+    if (!_isReady) {
+      if (kDebugMode) print('❌ Service non prêt. Annulation ignorée.');
+      return;
+    }
+    try {
+      await flutterLocalNotificationsPlugin.cancel(id);
+      if (kDebugMode) print('🔔 Notification #$id annulée.');
+    } catch (e) {
+      debugPrint('❌ Erreur annulation notification #$id: $e');
     }
   }
 
   Future<void> cancelAllNotifications() async {
-    await flutterLocalNotificationsPlugin.cancelAll();
-    if (kDebugMode) {
-      print('🔔 All notifications canceled.');
+    if (!_isReady) {
+      if (kDebugMode) print('❌ Service non prêt. Annulation globale ignorée.');
+      return;
+    }
+
+    // TEMPORAIRE : désactivation en release pour éviter crash
+    if (kReleaseMode) {
+      debugPrint('⚠️ cancelAllNotifications désactivé en release.');
+      return;
+    }
+
+    try {
+      await flutterLocalNotificationsPlugin.cancelAll();
+      if (kDebugMode) print('🔔 Toutes les notifications annulées.');
+    } catch (e, stack) {
+      debugPrint('❌ Erreur cancelAllNotifications: $e');
+      debugPrintStack(stackTrace: stack);
     }
   }
 }

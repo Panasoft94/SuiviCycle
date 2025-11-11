@@ -26,7 +26,7 @@ class DatabaseHelper {
       _database = null;
     }
   }
-  
+
   Future<void> deleteDatabase() async {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, _dbName);
@@ -113,7 +113,11 @@ class DatabaseHelper {
 
   Future<List<Cycle>> getCycles() async {
     final db = await database;
-    final List<Map<String, dynamic>> maps = await db.query('cycles', orderBy: 'start_date DESC');
+    final List<Map<String, dynamic>> maps = await db.query(
+      'cycles',
+      // CORRECTION : S'assurer que le cycle actif (end_date NULL) est toujours le premier.
+      orderBy: 'CASE WHEN end_date IS NULL THEN 0 ELSE 1 END, start_date DESC',
+    );
     return List.generate(maps.length, (i) => Cycle.fromMap(maps[i]));
   }
 
@@ -126,7 +130,7 @@ class DatabaseHelper {
     final db = await database;
     return await db.delete('cycles', where: 'id = ?', whereArgs: [id]);
   }
-  
+
   Future<double?> getAverageCycleLength() async {
     final db = await database;
     final result = await db.rawQuery('SELECT AVG(cycle_length) as avg FROM cycles WHERE cycle_length IS NOT NULL AND cycle_length > 0');
@@ -144,7 +148,7 @@ class DatabaseHelper {
     final List<Map<String, dynamic>> maps = await db.query('symptoms', where: 'cycle_id = ?', whereArgs: [cycleId]);
     return List.generate(maps.length, (i) => Symptom.fromMap(maps[i]));
   }
-  
+
   Future<List<Symptom>> getAllSymptoms() async {
     final db = await database;
     final List<Map<String, dynamic>> maps = await db.query('symptoms');

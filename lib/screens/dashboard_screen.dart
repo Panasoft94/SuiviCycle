@@ -19,6 +19,13 @@ extension StringExtension on String {
   }
 }
 
+// Classe de données pour le FutureBuilder
+class DashboardData {
+  final Cycle? currentCycle;
+  final AppSettings settings;
+  DashboardData(this.currentCycle, this.settings);
+}
+
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
@@ -31,7 +38,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
   final NotificationService _notificationService = NotificationService();
   Cycle? _currentCycle;
   int _currentDayOfCycle = 0;
-  late Future<AppSettings> _settingsFuture;
+  late Future<DashboardData> _initialDataFuture;
 
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
@@ -45,7 +52,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       duration: const Duration(milliseconds: 800),
     );
     _fadeAnimation = CurvedAnimation(parent: _animationController, curve: Curves.easeInOut);
-    _loadData();
+    _initialDataFuture = _loadInitialData();
   }
 
   @override
@@ -54,27 +61,52 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     super.dispose();
   }
 
-  Future<void> _loadData() async {
-    if (!mounted) return;
+  Future<DashboardData> _loadInitialData() async {
     _animationController.reset();
 
     final cycles = await _dbHelper.getCycles();
     final settings = await _dbHelper.getSettings();
 
-    _currentCycle = cycles.isNotEmpty ? cycles.first : null;
-    _settingsFuture = Future.value(settings);
+    // Utilisation de .firstWhereOrNull (si importé, sinon la solution orElse: () => null)
+    // En se basant sur la version précédente, nous utilisons l'orElse corrigé pour éviter l'erreur de type :
+    Cycle? activeCycle;
+    try {
+      activeCycle = cycles.firstWhere(
+            (cycle) => cycle.endDate == null,
+        orElse: () => cycles.isNotEmpty && cycles.first.endDate == null ? cycles.first : throw Exception('No active cycle or list is empty'),
+      );
+    } catch (_) {
+      activeCycle = null;
+    }
+    // Simplification pour éviter l'erreur de type précédente :
+    if (activeCycle == null) {
+      activeCycle = cycles.cast<Cycle?>().firstWhere((cycle) => cycle?.endDate == null, orElse: () => null);
+    }
+
+
+    _currentCycle = activeCycle;
 
     if (_currentCycle != null) {
-      await _updateCyclePredictions();
+      await _updateCyclePredictions(settings);
       _calculateCycleDay();
-      _checkIfPeriodIsDue(); // Keep dialog logic
     }
 
+    if (mounted) _animationController.forward();
+
+    _checkIfPeriodIsDue();
+
+    return DashboardData(_currentCycle, settings);
+  }
+
+  Future<void> _refreshData() async {
+    final data = await _loadInitialData();
     if (mounted) {
-      setState(() {});
-      _animationController.forward();
+      setState(() {
+        _currentCycle = data.currentCycle;
+      });
     }
   }
+
 
   void _calculateCycleDay() {
     if (_currentCycle != null) {
@@ -84,9 +116,9 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     }
   }
 
-  Future<void> _updateCyclePredictions() async {
+  // MODIFICATION CRITIQUE ICI: Ajout de la vérification isReady
+  Future<void> _updateCyclePredictions(AppSettings settings) async {
     final avgCycleLength = await _dbHelper.getAverageCycleLength();
-    final settings = await _settingsFuture;
 
     if (_currentCycle != null && _currentCycle!.endDate == null) {
       final cycleLength = avgCycleLength?.round() ?? settings.defaultCycleLength;
@@ -100,10 +132,16 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
 
       String phase = 'folliculaire';
       final now = DateTime.now();
-      if (ovulationDate != null && now.isAfter(ovulationDate.add(const Duration(days: 1)))) {
-        phase = 'lutéale';
-      } else if (ovulationDate != null && now.isAfter(ovulationDate.subtract(const Duration(days: 5)))) {
-        phase = 'ovulation';
+      if (_currentCycle!.periodEndDate != null && now.isAfter(_currentCycle!.periodEndDate!)) {
+        if (ovulationDate != null && now.isAfter(ovulationDate.add(const Duration(days: 1)))) {
+          phase = 'lutéale';
+        } else if (ovulationDate != null && now.isAfter(ovulationDate.subtract(const Duration(days: 5)))) {
+          phase = 'ovulation';
+        } else {
+          phase = 'folliculaire';
+        }
+      } else {
+        phase = 'règles';
       }
 
       final updatedCycle = Cycle(
@@ -118,23 +156,27 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       await _dbHelper.updateCycle(updatedCycle);
       _currentCycle = updatedCycle;
 
-      await _notificationService.cancelAllNotifications();
-      if (settings.notifyOvulation && ovulationDate != null) {
-        _notificationService.scheduleNotification(
-          id: 0,
-          title: 'Ovulation Bientôt',
-          body: 'Votre ovulation est prévue pour aujourd\'hui. C\'est le début de votre fenêtre de fertilité.',
-          scheduledDate: ovulationDate,
-        );
-      }
-      if (settings.notifyPeriod && expectedPeriod != null) {
-        _notificationService.scheduleNotification(
-          id: 1,
-          title: 'Règles en Approche',
-          body: 'Vos règles sont prévues dans 2 jours.',
-          scheduledDate: expectedPeriod.subtract(const Duration(days: 2)),
-          repeatDaily: true,
-        );
+      // Planification des notifications
+      // VÉRIFICATION DE SÉCURITÉ: Appel uniquement si le service est prêt
+      if (_notificationService.isReady) {
+        await _notificationService.cancelAllNotifications();
+        if (settings.notifyOvulation && ovulationDate != null) {
+          _notificationService.scheduleNotification(
+            id: 0,
+            title: 'Ovulation Bientôt',
+            body: 'Votre ovulation est prévue pour aujourd\'hui. C\'est le début de votre fenêtre de fertilité.',
+            scheduledDate: ovulationDate,
+          );
+        }
+        if (settings.notifyPeriod && expectedPeriod != null) {
+          _notificationService.scheduleNotification(
+            id: 1,
+            title: 'Règles en Approche',
+            body: 'Vos règles sont prévues dans 2 jours.',
+            scheduledDate: expectedPeriod.subtract(const Duration(days: 2)),
+            repeatDaily: true,
+          );
+        }
       }
     }
   }
@@ -153,9 +195,24 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: _buildDashboardContent(),
-      floatingActionButton: _buildFloatingActionButton(),
+    return FutureBuilder<DashboardData>(
+      future: _initialDataFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        } else if (snapshot.hasError) {
+          return Scaffold(
+            body: Center(child: Text("Erreur de chargement: ${snapshot.error}")),
+          );
+        } else {
+          return Scaffold(
+            body: _buildDashboardContent(),
+            floatingActionButton: _buildFloatingActionButton(),
+          );
+        }
+      },
     );
   }
 
@@ -173,7 +230,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
 
   Widget _buildDashboardContent() {
     return RefreshIndicator(
-      onRefresh: _loadData,
+      onRefresh: _refreshData,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 100.0),
         children: [
@@ -319,9 +376,9 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
           children: [
             const Icon(Icons.info_outline, size: 40, color: Colors.brown),
             const SizedBox(height: 10),
-            const Text('Aucun cycle en cours.', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text('Aucun cycle en cours.', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold,color: Colors.black)),
             const SizedBox(height: 5),
-            const Text('Appuyez sur le bouton + pour démarrer le suivi.', textAlign: TextAlign.center),
+            const Text('Appuyez sur le bouton + pour démarrer le suivi.', textAlign: TextAlign.center, style: TextStyle(color: Colors.black)),
           ],
         ),
       ),
@@ -543,7 +600,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       await _endCycle(isNewCycleStarting: true, newCycleStartDate: startDate);
     }
 
-    final settings = await _settingsFuture;
+    final settings = await _dbHelper.getSettings();
     final cycleLength = settings.defaultCycleLength;
 
     DateTime? ovulationDate;
@@ -555,13 +612,14 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
 
     final newCycle = Cycle(
       startDate: startDate,
-      phase: 'folliculaire',
+      phase: 'règles',
       cycleLength: cycleLength,
       ovulationDate: ovulationDate,
       expectedPeriod: expectedPeriod,
     );
     await _dbHelper.insertCycle(newCycle);
-    await _loadData();
+
+    await _refreshData();
   }
 
   Future<void> _endCycle({bool isNewCycleStarting = false, DateTime? newCycleStartDate}) async {
@@ -575,13 +633,14 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
         endDate: cycleEndDate,
         periodEndDate: _currentCycle!.periodEndDate ?? cycleEndDate,
         cycleLength: cycleLength > 0 ? cycleLength : 1,
-        phase: 'ended',
+        phase: 'terminé',
         ovulationDate: _currentCycle!.ovulationDate,
         expectedPeriod: _currentCycle!.expectedPeriod,
       );
       await _dbHelper.updateCycle(endedCycle);
+
       if (!isNewCycleStarting) {
-        await _loadData();
+        await _refreshData();
       }
     }
   }
@@ -597,10 +656,10 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
         cycleLength: updatedCycle.cycleLength,
         ovulationDate: updatedCycle.ovulationDate,
         expectedPeriod: updatedCycle.expectedPeriod,
-        phase: updatedCycle.phase,
+        phase: 'folliculaire',
       );
       await _dbHelper.updateCycle(newCycle);
-      await _loadData();
+      await _refreshData();
     }
   }
 
@@ -621,7 +680,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
               onPressed: () async {
                 await _dbHelper.deleteCycle(cycle.id!);
                 Navigator.of(dialogContext).pop();
-                _loadData();
+                await _refreshData();
               },
             ),
           ],
