@@ -5,7 +5,6 @@ import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:android_intent_plus/android_intent.dart';
-import 'package:android_intent_plus/flag.dart';
 
 class NotificationService {
   static final NotificationService _notificationService = NotificationService._internal();
@@ -43,8 +42,8 @@ class NotificationService {
   Future<void> _requestPermissions() async {
     if (Platform.isAndroid) {
       final AndroidFlutterLocalNotificationsPlugin? androidImplementation =
-      flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>();
+          flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>();
       if (androidImplementation != null) {
         await androidImplementation.requestNotificationsPermission();
       }
@@ -52,22 +51,22 @@ class NotificationService {
       await flutterLocalNotificationsPlugin
           .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>()
           ?.requestPermissions(
-        alert: true,
-        badge: true,
-        sound: true,
-      );
+            alert: true,
+            badge: true,
+            sound: true,
+          );
     }
   }
 
   Future<void> _checkExactAlarmPermission() async {
     if (Platform.isAndroid) {
       final androidInfo = await DeviceInfoPlugin().androidInfo;
-      if (androidInfo.version.sdkInt >= 31) { // Changed to API 31 for SCHEDULE_EXACT_ALARM
+      if (androidInfo.version.sdkInt >= 31) {
         final AndroidFlutterLocalNotificationsPlugin? androidImplementation =
-        flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>();
+            flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
+                AndroidFlutterLocalNotificationsPlugin>();
 
-        final bool? granted = await androidImplementation?.canScheduleExactNotifications(); // Corrected method name
+        final bool? granted = await androidImplementation?.canScheduleExactNotifications();
         if (granted != null && !granted) {
           const intent = AndroidIntent(
             action: 'android.settings.REQUEST_SCHEDULE_EXACT_ALARM',
@@ -83,44 +82,59 @@ class NotificationService {
     required String title,
     required String body,
     required DateTime scheduledDate,
+    bool repeatDaily = false, // Unified parameter for repetition
   }) async {
-    if (scheduledDate.isBefore(DateTime.now())) {
-      if (kDebugMode) {
-        print('⛔ La date de notification est dans le passé : $scheduledDate');
-      }
-      return;
-    }
+    final tz.TZDateTime scheduledTZDate = tz.TZDateTime(
+      tz.local,
+      scheduledDate.year,
+      scheduledDate.month,
+      scheduledDate.day,
+      9, // Always schedule for 9 AM for consistency
+    );
+
+    const NotificationDetails notificationDetails = NotificationDetails(
+      android: AndroidNotificationDetails(
+        'cycle_channel_id',
+        'Cycle Notifications',
+        channelDescription: 'Notifications about your cycle.',
+        importance: Importance.max,
+        priority: Priority.high,
+      ),
+    );
 
     try {
       await flutterLocalNotificationsPlugin.zonedSchedule(
         id,
         title,
         body,
-        tz.TZDateTime.from(scheduledDate, tz.local),
-        const NotificationDetails(
-          android: AndroidNotificationDetails(
-            'cycle_channel_id',
-            'Cycle Notifications',
-            channelDescription: 'Notifications about your cycle.',
-            importance: Importance.max,
-            priority: Priority.high,
-          ),
-        ),
+        scheduledTZDate,
+        notificationDetails,
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+        matchDateTimeComponents: repeatDaily ? DateTimeComponents.time : null,
       );
+
+      if (kDebugMode) {
+        print('✅ Notification #${id} scheduled for $scheduledTZDate, repeating: $repeatDaily');
+      }
     } catch (e) {
       if (kDebugMode) {
-        print('Erreur lors de la planification de la notification : $e');
+        print('❌ Erreur lors de la planification de la notification #${id}: $e');
       }
     }
   }
 
   Future<void> cancelNotification(int id) async {
     await flutterLocalNotificationsPlugin.cancel(id);
+    if (kDebugMode) {
+      print('🔔 Notification #${id} canceled.');
+    }
   }
 
   Future<void> cancelAllNotifications() async {
     await flutterLocalNotificationsPlugin.cancelAll();
+    if (kDebugMode) {
+      print('🔔 All notifications canceled.');
+    }
   }
 }

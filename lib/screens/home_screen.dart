@@ -49,6 +49,18 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     super.dispose();
   }
 
+  PageRouteBuilder _slideTransition(Widget page) {
+    return PageRouteBuilder(
+      pageBuilder: (_, __, ___) => page,
+      transitionsBuilder: (_, animation, __, child) {
+        return SlideTransition(
+          position: Tween(begin: const Offset(1, 0), end: Offset.zero).animate(animation),
+          child: child,
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
@@ -65,7 +77,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             icon: const Icon(Icons.help_outline),
             tooltip: 'Aide',
             onPressed: () {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => const AideScreen()));
+              Navigator.push(context, _slideTransition(const AideScreen()));
             },
           ),
         ],

@@ -76,7 +76,7 @@ class _CycleHistoryScreenState extends State<CycleHistoryScreen> {
     String endDateText;
     if (isOngoing) {
       endDateText = cycle.expectedPeriod != null 
-          ? '~ ${DateFormat('d MMM yyyy', 'fr_FR').format(cycle.expectedPeriod!)} (est.)' 
+          ? '~ ${DateFormat('d MMM yyyy', 'fr_FR').format(cycle.expectedPeriod!)}'
           : 'En cours';
     } else {
       endDateText = DateFormat('d MMM yyyy', 'fr_FR').format(cycle.endDate!);
@@ -121,7 +121,7 @@ class _CycleHistoryScreenState extends State<CycleHistoryScreen> {
                   if (cycle.ovulationDate != null)
                     _buildDetailRow(
                       Icons.favorite_border,
-                      'Date d\'ovulation (est.)',
+                      'Date d\'ovulation',
                       DateFormat('d MMMM yyyy', 'fr_FR').format(cycle.ovulationDate!),
                     ),
                   if (cycle.ovulationDate == null && cycle.cycleLength != null && cycle.cycleLength! <= 15)

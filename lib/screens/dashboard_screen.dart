@@ -5,7 +5,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import '../database/database_helper.dart';
 import '../models/cycle.dart';
 import '../models/settings.dart';
-import '../services/notification_service.dart'; // Import notification service
+import '../services/notification_service.dart';
 import 'symptom_screen.dart';
 import 'cycle_history_screen.dart';
 import 'prediction_details_screen.dart';
@@ -28,7 +28,7 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProviderStateMixin {
   final DatabaseHelper _dbHelper = DatabaseHelper();
-  final NotificationService _notificationService = NotificationService(); // Instantiate notification service
+  final NotificationService _notificationService = NotificationService();
   Cycle? _currentCycle;
   int _currentDayOfCycle = 0;
   late Future<AppSettings> _settingsFuture;
@@ -67,6 +67,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     if (_currentCycle != null) {
       await _updateCyclePredictions();
       _calculateCycleDay();
+      _checkIfPeriodIsDue(); // Keep dialog logic
     }
 
     if (mounted) {
@@ -117,7 +118,6 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       await _dbHelper.updateCycle(updatedCycle);
       _currentCycle = updatedCycle;
 
-      // Cancel old notifications and schedule new ones based on settings
       await _notificationService.cancelAllNotifications();
       if (settings.notifyOvulation && ovulationDate != null) {
         _notificationService.scheduleNotification(
@@ -133,7 +133,20 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
           title: 'Règles en Approche',
           body: 'Vos règles sont prévues dans 2 jours.',
           scheduledDate: expectedPeriod.subtract(const Duration(days: 2)),
+          repeatDaily: true,
         );
+      }
+    }
+  }
+  
+  void _checkIfPeriodIsDue() {
+    if (_currentCycle != null && _currentCycle!.expectedPeriod != null) {
+      final now = DateTime.now();
+      final difference = _currentCycle!.expectedPeriod!.difference(now).inDays;
+      if (difference <= 2 && difference >= -2) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _showPeriodStartPrompt(context);
+        });
       }
     }
   }
@@ -146,12 +159,25 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     );
   }
 
+  PageRouteBuilder _slideTransition(Widget page) {
+    return PageRouteBuilder(
+      pageBuilder: (_, __, ___) => page,
+      transitionsBuilder: (_, animation, __, child) {
+        return SlideTransition(
+          position: Tween(begin: const Offset(1, 0), end: Offset.zero).animate(animation),
+          child: child,
+        );
+      },
+    );
+  }
+
   Widget _buildDashboardContent() {
     return RefreshIndicator(
       onRefresh: _loadData,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 100.0),
         children: [
+          _buildDueDateNotification(),
           if (_currentCycle != null) _buildCycleInfoCard() else _buildNoCycleCard(),
           const SizedBox(height: 16),
           _buildFeatureTiles(),
@@ -160,6 +186,40 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     );
   }
   
+  Widget _buildDueDateNotification() {
+    if (_currentCycle != null && _currentCycle!.expectedPeriod != null) {
+      final now = DateTime.now();
+      final difference = _currentCycle!.expectedPeriod!.difference(now).inDays;
+
+      if (difference >= -2 && difference <= 2) { 
+        String dayString = "imminentes";
+        if (difference == 0) {
+          dayString = "aujourd'hui";
+        } else if (difference == 1) {
+          dayString = "demain";
+        } else if (difference > 1) {
+          dayString = "dans $difference jours";
+        }
+
+        return Container(
+          padding: const EdgeInsets.all(12),
+          margin: const EdgeInsets.only(bottom: 16),
+          decoration: BoxDecoration(
+            color: Colors.pink[50],
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.info_outline, color: Colors.pinkAccent),
+              const SizedBox(width: 10),
+              Expanded(child: Text("Vos prochaines règles sont attendues $dayString.", style: const TextStyle(fontWeight: FontWeight.bold,color: Colors.black))),
+            ],
+          ),
+        );
+      }
+    }
+    return const SizedBox.shrink();
+  }
 
   Widget _buildCycleInfoCard() {
     String phaseInfo = _currentCycle?.phase?.capitalize() ?? 'N/A';
@@ -213,7 +273,6 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       );
     }
 
-    // Default display for ongoing cycle
     return FadeTransition(
       opacity: _fadeAnimation,
       child: GestureDetector(
@@ -251,7 +310,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     );
   }
 
-    Widget _buildNoCycleCard() {
+  Widget _buildNoCycleCard() {
     return Card(
       color: Colors.brown[50],
       child: Padding(
@@ -278,7 +337,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
             icon: Icons.history,
             title: 'Historique des cycles',
             subtitle: 'Consultez vos cycles précédents.',
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const CycleHistoryScreen())),
+            onTap: () => Navigator.push(context, _slideTransition(const CycleHistoryScreen())),
           ),
           const SizedBox(height: 12),
           _buildFeatureTile(
@@ -287,7 +346,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
             subtitle: 'Douleurs, humeur, énergie...',
             onTap: () {
               if (_currentCycle != null && _currentCycle!.id != null) {
-                Navigator.push(context, MaterialPageRoute(builder: (context) => SymptomScreen(cycleId: _currentCycle!.id!)));
+                Navigator.push(context, _slideTransition(SymptomScreen(cycleId: _currentCycle!.id!)));
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Veuillez d'abord démarrer un cycle.")));
               }
@@ -298,14 +357,14 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
             icon: Icons.bar_chart,
             title: 'Statistiques et visualisations',
             subtitle: 'Graphiques, heatmap et calendrier.',
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const StatsScreen())),
+            onTap: () => Navigator.push(context, _slideTransition(const StatsScreen())),
           ),
           const SizedBox(height: 12),
           _buildFeatureTile(
             icon: Icons.smart_toy_outlined,
             title: 'Prédictions intelligentes',
             subtitle: 'Algorithme adaptatif et ajustements.',
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const PredictionDetailsScreen())),
+            onTap: () => Navigator.push(context, _slideTransition(const PredictionDetailsScreen())),
           ),
         ],
       ),
@@ -437,6 +496,41 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
             ElevatedButton(
               child: const Text('Enregistrer'),
               onPressed: () => Navigator.of(dialogContext).pop(selectedDate),
+            ),
+          ],
+        );
+      },
+    );
+  }
+  
+  void _showPeriodStartPrompt(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Nouveau cycle ?'),
+          content: const Text('Vos règles ont-elles commencé ?'),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Pas encore'),
+              onPressed: () => Navigator.of(dialogContext).pop(),
+            ),
+            TextButton(
+              child: const Text('Choisir une date'),
+              onPressed: () async {
+                Navigator.of(dialogContext).pop();
+                final newStartDate = await _showStartCycleDialog(context);
+                if (newStartDate != null) {
+                  await _startNewCycle(startDate: newStartDate);
+                }
+              },
+            ),
+            ElevatedButton(
+              child: const Text('Oui, aujourd\'hui'),
+              onPressed: () async {
+                Navigator.of(dialogContext).pop();
+                await _startNewCycle(startDate: DateTime.now());
+              },
             ),
           ],
         );
