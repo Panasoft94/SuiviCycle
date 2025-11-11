@@ -57,7 +57,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
   Future<void> _loadData() async {
     if (!mounted) return;
     _animationController.reset();
-    
+
     final cycles = await _dbHelper.getCycles();
     final settings = await _dbHelper.getSettings();
 
@@ -71,8 +71,8 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     }
 
     if (mounted) {
-        setState(() {});
-        _animationController.forward();
+      setState(() {});
+      _animationController.forward();
     }
   }
 
@@ -90,7 +90,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
 
     if (_currentCycle != null && _currentCycle!.endDate == null) {
       final cycleLength = avgCycleLength?.round() ?? settings.defaultCycleLength;
-      
+
       DateTime? ovulationDate;
       if (cycleLength > 15) {
         ovulationDate = _currentCycle!.startDate.add(Duration(days: cycleLength - 14));
@@ -138,7 +138,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       }
     }
   }
-  
+
   void _checkIfPeriodIsDue() {
     if (_currentCycle != null && _currentCycle!.expectedPeriod != null) {
       final now = DateTime.now();
@@ -185,13 +185,13 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       ),
     );
   }
-  
+
   Widget _buildDueDateNotification() {
     if (_currentCycle != null && _currentCycle!.expectedPeriod != null) {
       final now = DateTime.now();
       final difference = _currentCycle!.expectedPeriod!.difference(now).inDays;
 
-      if (difference >= -2 && difference <= 2) { 
+      if (difference >= -2 && difference <= 2) {
         String dayString = "imminentes";
         if (difference == 0) {
           dayString = "aujourd'hui";
@@ -233,10 +233,10 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       if (daysUntilStart == 1) {
         countdownText = "Commence demain";
       }
-      
+
       String expectedPeriodDate = _currentCycle?.expectedPeriod != null
-        ? DateFormat('d MMM yyyy', 'fr_FR').format(_currentCycle!.expectedPeriod!)
-        : 'N/A';
+          ? DateFormat('d MMM yyyy', 'fr_FR').format(_currentCycle!.expectedPeriod!)
+          : 'N/A';
 
       return FadeTransition(
         opacity: _fadeAnimation,
@@ -298,9 +298,9 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                   title: Text('Phase: $phaseInfo', style: Theme.of(context).textTheme.titleMedium),
                 ),
                 ListTile(
-                    leading: const Icon(Icons.favorite_border, color: Colors.pinkAccent, size: 30),
-                    title: Text('Fenêtre de Fertilité', style: Theme.of(context).textTheme.titleMedium),
-                    subtitle: Text(ovulationDateInfo),
+                  leading: const Icon(Icons.favorite_border, color: Colors.pinkAccent, size: 30),
+                  title: Text('Fenêtre de Fertilité', style: Theme.of(context).textTheme.titleMedium),
+                  subtitle: Text(ovulationDateInfo),
                 )
               ],
             ),
@@ -502,7 +502,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       },
     );
   }
-  
+
   void _showPeriodStartPrompt(BuildContext context) {
     showDialog(
       context: context,
@@ -545,10 +545,10 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
 
     final settings = await _settingsFuture;
     final cycleLength = settings.defaultCycleLength;
-    
+
     DateTime? ovulationDate;
     if (cycleLength > 15) {
-        ovulationDate = startDate.add(Duration(days: cycleLength - 14));
+      ovulationDate = startDate.add(Duration(days: cycleLength - 14));
     }
 
     final expectedPeriod = startDate.add(Duration(days: cycleLength));

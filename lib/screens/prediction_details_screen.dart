@@ -35,6 +35,13 @@ class _PredictionDetailsScreenState extends State<PredictionDetailsScreen> {
         title: const Text('Prédictions Intelligentes'),
         backgroundColor: Colors.brown,
         foregroundColor: Colors.white,
+        centerTitle: true,
+        toolbarHeight: 70,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            bottom: Radius.circular(30),
+          ),
+        ),
       ),
       body: FutureBuilder<Map<String, dynamic>>(
         future: _dataFuture,

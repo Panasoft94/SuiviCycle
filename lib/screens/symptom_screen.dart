@@ -42,6 +42,13 @@ class _SymptomScreenState extends State<SymptomScreen> {
         title: const Text('Journal des Symptômes'),
         backgroundColor: Colors.brown,
         foregroundColor: Colors.white,
+        centerTitle: true,
+        toolbarHeight: 70,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            bottom: Radius.circular(30),
+          ),
+        ),
       ),
       body: FutureBuilder<List<Symptom>>(
         future: _symptomsFuture,
@@ -164,7 +171,7 @@ class _SymptomScreenState extends State<SymptomScreen> {
           FilterChip(label: const Text('Douleur'), selected: _selectedFilter == ChartFilter.pain, onSelected: (selected) {if (selected) setState(() => _selectedFilter = ChartFilter.pain);}, selectedColor: Colors.brown.withOpacity(0.3)),
           FilterChip(label: const Text('Énergie'), selected: _selectedFilter == ChartFilter.energy, onSelected: (selected) {if (selected) setState(() => _selectedFilter = ChartFilter.energy);}, selectedColor: Colors.brown.withOpacity(0.3)),
           FilterChip(label: const Text('Libido'), selected: _selectedFilter == ChartFilter.libido, onSelected: (selected) {if (selected) setState(() => _selectedFilter = ChartFilter.libido);}, selectedColor: Colors.brown.withOpacity(0.3)),
-        ],
+        ], 
       ),
     );
   }

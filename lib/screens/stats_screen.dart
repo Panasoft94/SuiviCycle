@@ -104,6 +104,12 @@ class _StatsScreenState extends State<StatsScreen> {
         centerTitle: true,
         backgroundColor: Colors.brown,
         foregroundColor: Colors.white,
+        toolbarHeight: 70,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            bottom: Radius.circular(30),
+          ),
+        ),
       ),
       body: FutureBuilder<Map<String, dynamic>>(
         future: _statsDataFuture,

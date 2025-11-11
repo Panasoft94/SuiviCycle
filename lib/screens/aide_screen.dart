@@ -10,6 +10,13 @@ class AideScreen extends StatelessWidget {
         title: const Text('À Propos de CycleTrack'),
         backgroundColor: Colors.brown,
         foregroundColor: Colors.white,
+        centerTitle: true,
+        toolbarHeight: 70,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            bottom: Radius.circular(30),
+          ),
+        ),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16.0),

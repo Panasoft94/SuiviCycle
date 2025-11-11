@@ -49,6 +49,13 @@ class _AddSymptomScreenState extends State<AddSymptomScreen> {
         title: Text(widget.symptomToEdit == null ? 'Nouveau Journal' : 'Modifier le Journal'),
         backgroundColor: Colors.brown,
         foregroundColor: Colors.white,
+        centerTitle: true,
+        toolbarHeight: 70,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            bottom: Radius.circular(30),
+          ),
+        ),
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 80.0),

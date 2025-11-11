@@ -36,6 +36,13 @@ class _CycleHistoryScreenState extends State<CycleHistoryScreen> {
         title: const Text('Historique des Cycles'),
         backgroundColor: Colors.brown,
         foregroundColor: Colors.white,
+        centerTitle: true,
+        toolbarHeight: 70,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            bottom: Radius.circular(30),
+          ),
+        ),
       ),
       body: FutureBuilder<List<Cycle>>(
         future: _cyclesFuture,

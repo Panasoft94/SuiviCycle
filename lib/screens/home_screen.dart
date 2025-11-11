@@ -67,11 +67,24 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
     return Scaffold(
       appBar: AppBar(
-        leading: Icon(_widgetIcons[_tabController.index]),
-        title: Text(_widgetTitles[_tabController.index]),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(_widgetIcons[_tabController.index]),
+            const SizedBox(width: 8),
+            Text(_widgetTitles[_tabController.index]),
+          ],
+        ),
         centerTitle: true,
         backgroundColor: Colors.brown,
-        foregroundColor: Colors.white, // This ensures title and icons are white
+        foregroundColor: Colors.white,
+        toolbarHeight: 70, // Increased height
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            bottom: Radius.circular(30), // Rounded bottom corners
+          ),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.help_outline),
