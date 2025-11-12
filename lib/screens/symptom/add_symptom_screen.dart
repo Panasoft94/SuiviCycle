@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../database/database_helper.dart';
-import '../models/symptom.dart';
+import '../../database/database_helper.dart';
+import '../../models/symptom.dart';
 
 class AddSymptomScreen extends StatefulWidget {
   final int cycleId;

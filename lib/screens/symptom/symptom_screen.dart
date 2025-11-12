@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:fl_chart/fl_chart.dart';
-import '../database/database_helper.dart';
-import '../models/symptom.dart';
+import '../../database/database_helper.dart';
+import '../../models/symptom.dart';
 import 'add_symptom_screen.dart';
 
 class SymptomScreen extends StatefulWidget {

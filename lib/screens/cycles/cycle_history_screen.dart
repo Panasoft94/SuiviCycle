@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import '../database/database_helper.dart';
-import '../models/cycle.dart';
-import 'stats_screen.dart'; // Import the stats screen
+import '../../database/database_helper.dart';
+import '../../models/cycle.dart';
+import '../stats/stats_screen.dart'; // Import the stats screen
 
 class CycleHistoryScreen extends StatefulWidget {
   const CycleHistoryScreen({super.key});

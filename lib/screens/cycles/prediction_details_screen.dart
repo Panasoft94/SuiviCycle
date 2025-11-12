@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../database/database_helper.dart';
-import '../models/settings.dart';
+import '../../database/database_helper.dart';
+import '../../models/settings.dart';
 
 class PredictionDetailsScreen extends StatefulWidget {
   const PredictionDetailsScreen({super.key});

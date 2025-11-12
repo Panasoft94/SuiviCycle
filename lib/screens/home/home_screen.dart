@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'dashboard_screen.dart';
-import 'settings_screen.dart';
-import 'couple_mode_screen.dart';
-import 'aide_screen.dart';
+import '../dashboard/dashboard_screen.dart';
+import '../settings/settings_screen.dart';
+import '../cycles/couple_mode_screen.dart';
+import '../aide/aide_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -82,7 +82,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         toolbarHeight: 70, // Increased height
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(
-            bottom: Radius.circular(30), // Rounded bottom corners
+            bottom: Radius.circular(18), // Rounded bottom corners
           ),
         ),
         actions: [

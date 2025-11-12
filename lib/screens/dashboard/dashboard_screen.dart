@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import '../database/database_helper.dart';
-import '../models/cycle.dart';
-import '../models/settings.dart';
-import '../services/notification_service.dart';
-import 'symptom_screen.dart';
-import 'cycle_history_screen.dart';
-import 'prediction_details_screen.dart';
-import 'stats_screen.dart';
+import '../../database/database_helper.dart';
+import '../../models/cycle.dart';
+import '../../models/settings.dart';
+import '../../services/notification_service.dart';
+import '../symptom/symptom_screen.dart';
+import '../cycles/cycle_history_screen.dart';
+import '../cycles/prediction_details_screen.dart';
+import '../stats/stats_screen.dart';
 
 // Helper extension to capitalize strings
 extension StringExtension on String {

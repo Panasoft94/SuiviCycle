@@ -25,6 +25,9 @@ dependencies:
   flutter_local_notifications: ^17.2.1
   device_info_plus: ^10.1.0
   android_intent_plus: ^5.0.2
+  pinput: ^4.0.0
+  local_auth: ^2.2.0
+  another_flushbar: ^1.12.30
 
 dev_dependencies:
   flutter_test:
@@ -39,5 +42,3 @@ flutter_launcher_icons:
 
 flutter:
   uses-material-design: true
-
-# Refreshing dependencies to solve import errors

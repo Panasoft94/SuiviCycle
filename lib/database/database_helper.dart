@@ -12,7 +12,7 @@ class DatabaseHelper {
 
   static Database? _database;
   static const _dbName = 'cycles.db';
-  static const _dbVersion = 6;
+  static const _dbVersion = 9; // Incremented version for new user schema
 
   Future<Database> get database async {
     if (_database != null && _database!.isOpen) return _database!;
@@ -26,7 +26,7 @@ class DatabaseHelper {
       _database = null;
     }
   }
-
+  
   Future<void> deleteDatabase() async {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, _dbName);
@@ -50,59 +50,111 @@ class DatabaseHelper {
   }
 
   Future _onCreate(Database db, int version) async {
-    await db.execute('''
-    CREATE TABLE cycles(
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      start_date TEXT NOT NULL,
-      end_date TEXT,
-      period_end_date TEXT,
-      cycle_length INTEGER,
-      ovulation_date TEXT,
-      expected_period TEXT,
-      phase TEXT,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP
-    )
-    ''');
-
-    await db.execute('''
-    CREATE TABLE symptoms(
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      cycle_id INTEGER,
-      date TEXT NOT NULL,
-      mood TEXT,
-      pain_level INTEGER,
-      energy_level INTEGER,
-      libido_level INTEGER,
-      notes TEXT,
-      FOREIGN KEY (cycle_id) REFERENCES cycles(id) ON DELETE CASCADE
-    )
-    ''');
-
-    await db.execute('''
-    CREATE TABLE notes (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      date TEXT NOT NULL,
-      content TEXT
-    )
-    ''');
-
-    await db.execute('''
-    CREATE TABLE settings (
-      id INTEGER PRIMARY KEY,
-      default_cycle_length INTEGER,
-      notify_period INTEGER,
-      notify_ovulation INTEGER,
-      theme TEXT
-    )
-    ''');
+    await _onUpgrade(db, 0, version);
   }
 
   Future _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    await db.execute('DROP TABLE IF EXISTS cycles');
-    await db.execute('DROP TABLE IF EXISTS symptoms');
-    await db.execute('DROP TABLE IF EXISTS notes');
-    await db.execute('DROP TABLE IF EXISTS settings');
-    await _onCreate(db, newVersion);
+    if (oldVersion < newVersion) {
+      // Drop all existing tables to recreate them
+      await db.execute('DROP TABLE IF EXISTS cycles');
+      await db.execute('DROP TABLE IF EXISTS symptoms');
+      await db.execute('DROP TABLE IF EXISTS notes');
+      await db.execute('DROP TABLE IF EXISTS settings');
+      await db.execute('DROP TABLE IF EXISTS users');
+
+      await db.execute('''
+      CREATE TABLE cycles(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        start_date TEXT NOT NULL,
+        end_date TEXT,
+        period_end_date TEXT,
+        cycle_length INTEGER,
+        ovulation_date TEXT,
+        expected_period TEXT,
+        phase TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+      ''');
+
+      await db.execute('''
+      CREATE TABLE symptoms(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        cycle_id INTEGER,
+        date TEXT NOT NULL,
+        mood TEXT,
+        pain_level INTEGER,
+        energy_level INTEGER,
+        libido_level INTEGER,
+        notes TEXT,
+        FOREIGN KEY (cycle_id) REFERENCES cycles(id) ON DELETE CASCADE
+      )
+      ''');
+
+      await db.execute('''
+      CREATE TABLE notes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT NOT NULL,
+        content TEXT
+      )
+      ''');
+
+      await db.execute('''
+      CREATE TABLE settings (
+        id INTEGER PRIMARY KEY,
+        default_cycle_length INTEGER,
+        notify_period INTEGER,
+        notify_ovulation INTEGER,
+        theme TEXT
+      )
+      ''');
+      
+      // New, more detailed user table
+      await db.execute('''
+      CREATE TABLE users (
+        user_id INTEGER PRIMARY KEY,
+        user_name TEXT,
+        user_email TEXT,
+        user_password TEXT,
+        user_pin TEXT NOT NULL,
+        user_phone TEXT,
+        user_role TEXT,
+        user_status INTEGER,
+        user_created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        user_updated_at TEXT,
+        access_empreinte INTEGER
+      )
+      ''');
+    }
+  }
+
+  // User CRUD
+  Future<void> insertUser(Map<String, dynamic> user) async {
+    final db = await database;
+    await db.insert('users', {'user_id': 1, ...user}, conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  Future<Map<String, dynamic>?> getUser() async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query('users', limit: 1);
+    if (maps.isNotEmpty) {
+      return maps.first;
+    }
+    return null;
+  }
+
+  Future<bool> hasUser() async {
+    final user = await getUser();
+    return user != null;
+  }
+
+  Future<int> updateUserPin(String newPin) async {
+    final db = await database;
+    return await db.update('users', {'user_pin': newPin}, where: 'user_id = ?', whereArgs: [1]);
+  }
+
+  Future<int> updateUser(Map<String, dynamic> user) async {
+    final db = await database;
+    return await db.update('users', user, where: 'user_id = ?', whereArgs: [1]);
   }
 
   // Cycle CRUD methods
@@ -113,11 +165,7 @@ class DatabaseHelper {
 
   Future<List<Cycle>> getCycles() async {
     final db = await database;
-    final List<Map<String, dynamic>> maps = await db.query(
-      'cycles',
-      // CORRECTION : S'assurer que le cycle actif (end_date NULL) est toujours le premier.
-      orderBy: 'CASE WHEN end_date IS NULL THEN 0 ELSE 1 END, start_date DESC',
-    );
+    final List<Map<String, dynamic>> maps = await db.query('cycles', orderBy: 'start_date DESC');
     return List.generate(maps.length, (i) => Cycle.fromMap(maps[i]));
   }
 
@@ -130,7 +178,7 @@ class DatabaseHelper {
     final db = await database;
     return await db.delete('cycles', where: 'id = ?', whereArgs: [id]);
   }
-
+  
   Future<double?> getAverageCycleLength() async {
     final db = await database;
     final result = await db.rawQuery('SELECT AVG(cycle_length) as avg FROM cycles WHERE cycle_length IS NOT NULL AND cycle_length > 0');
@@ -148,7 +196,7 @@ class DatabaseHelper {
     final List<Map<String, dynamic>> maps = await db.query('symptoms', where: 'cycle_id = ?', whereArgs: [cycleId]);
     return List.generate(maps.length, (i) => Symptom.fromMap(maps[i]));
   }
-
+  
   Future<List<Symptom>> getAllSymptoms() async {
     final db = await database;
     final List<Map<String, dynamic>> maps = await db.query('symptoms');

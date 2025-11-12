@@ -1,10 +1,11 @@
+import '../user_account/create_pin.dart';
+import '../user_account/user_account_screen.dart';
 import 'package:flutter/material.dart';
-import '../database/database_helper.dart';
-import '../models/settings.dart';
-import '../services/backup_service.dart';
-import '../services/notification_service.dart';
-import '../main.dart'; // Import main.dart to access MyAppState
-import 'aide_screen.dart';
+import '../../database/database_helper.dart';
+import '../../models/settings.dart';
+import '../../services/backup_service.dart';
+import '../../services/notification_service.dart';
+import '../../main.dart'; // Import main.dart to access MyAppState
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -37,6 +38,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     // You might want to re-schedule notifications here if they are enabled
     // but the logic is currently in the dashboard screen.
+  }
+
+  PageRouteBuilder _slideTransition(Widget page) {
+    return PageRouteBuilder(
+      pageBuilder: (_, __, ___) => page,
+      transitionsBuilder: (_, animation, __, child) {
+        return SlideTransition(
+          position: Tween(begin: const Offset(1, 0), end: Offset.zero).animate(animation),
+          child: child,
+        );
+      },
+    );
   }
 
   @override
@@ -90,6 +103,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ));
                   }),
                 ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            
+            Text('Sécurité', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Card(
+              elevation: 4,
+              child: ListTile(
+                leading: const Icon(Icons.security_outlined),
+                title: const Text('Sécurité du compte'),
+                subtitle: const Text('Gérer l\'accès par code PIN'),
+                trailing: const Icon(Icons.arrow_forward_ios),
+                onTap: () async {
+                  final bool userExists = await _dbHelper.hasUser();
+                  if (!mounted) return;
+                  if (userExists) {
+                    Navigator.push(context, _slideTransition(const UserAccountScreen()));
+                  } else {
+                    Navigator.push(context, _slideTransition(const CreatePinPage()));
+                  }
+                },
               ),
             ),
             const SizedBox(height: 24),
