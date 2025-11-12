@@ -39,7 +39,7 @@ class _PredictionDetailsScreenState extends State<PredictionDetailsScreen> {
         toolbarHeight: 70,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(
-            bottom: Radius.circular(30),
+            bottom: Radius.circular(6),
           ),
         ),
       ),

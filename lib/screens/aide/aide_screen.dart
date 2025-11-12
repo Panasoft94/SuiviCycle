@@ -14,7 +14,7 @@ class AideScreen extends StatelessWidget {
         toolbarHeight: 70,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(
-            bottom: Radius.circular(30),
+            bottom: Radius.circular(6),
           ),
         ),
       ),

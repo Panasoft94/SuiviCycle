@@ -67,7 +67,7 @@ class _CreatePinPageState extends State<CreatePinPage> {
         centerTitle: true,
         toolbarHeight: 70,
         shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
+          borderRadius: BorderRadius.vertical(bottom: Radius.circular(6)),
         ),
       ),
       body: SafeArea(

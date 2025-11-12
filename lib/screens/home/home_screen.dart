@@ -82,7 +82,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         toolbarHeight: 70, // Increased height
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(
-            bottom: Radius.circular(18), // Rounded bottom corners
+            bottom: Radius.circular(6), // Rounded bottom corners
           ),
         ),
         actions: [
