@@ -29,6 +29,18 @@ class _CycleHistoryScreenState extends State<CycleHistoryScreen> {
     });
   }
 
+  PageRouteBuilder _slideTransition(Widget page) {
+    return PageRouteBuilder(
+      pageBuilder: (_, __, ___) => page,
+      transitionsBuilder: (_, animation, __, child) {
+        return SlideTransition(
+          position: Tween(begin: const Offset(1, 0), end: Offset.zero).animate(animation),
+          child: child,
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -40,7 +52,7 @@ class _CycleHistoryScreenState extends State<CycleHistoryScreen> {
         toolbarHeight: 70,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(
-            bottom: Radius.circular(30),
+            bottom: Radius.circular(6),
           ),
         ),
       ),
@@ -66,7 +78,7 @@ class _CycleHistoryScreenState extends State<CycleHistoryScreen> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
-          Navigator.push(context, MaterialPageRoute(builder: (context) => const StatsScreen()));
+          Navigator.push(context, _slideTransition(const StatsScreen()));
         },
         label: const Text('Voir les Stats'),
         icon: const Icon(Icons.bar_chart),

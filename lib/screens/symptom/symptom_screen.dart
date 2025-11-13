@@ -35,6 +35,18 @@ class _SymptomScreenState extends State<SymptomScreen> {
     });
   }
 
+  PageRouteBuilder _slideTransition(Widget page) {
+    return PageRouteBuilder(
+      pageBuilder: (_, __, ___) => page,
+      transitionsBuilder: (_, animation, __, child) {
+        return SlideTransition(
+          position: Tween(begin: const Offset(1, 0), end: Offset.zero).animate(animation),
+          child: child,
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -80,7 +92,7 @@ class _SymptomScreenState extends State<SymptomScreen> {
                   },
                 ),
               ),
-            ],
+            ], 
           );
         },
       ),
@@ -88,7 +100,7 @@ class _SymptomScreenState extends State<SymptomScreen> {
         onPressed: () async {
           final result = await Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => AddSymptomScreen(cycleId: widget.cycleId)),
+            _slideTransition(AddSymptomScreen(cycleId: widget.cycleId)),
           );
           if (result == true) _loadSymptoms();
         },
@@ -203,7 +215,7 @@ class _SymptomScreenState extends State<SymptomScreen> {
 
   void _onCardMenuSelection(int item, Symptom symptom) async {
     if (item == 0) {
-      final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => AddSymptomScreen(cycleId: widget.cycleId, symptomToEdit: symptom)));
+      final result = await Navigator.push(context, _slideTransition(AddSymptomScreen(cycleId: widget.cycleId, symptomToEdit: symptom)));
       if (result == true) _loadSymptoms();
     } else if (item == 1) {
       _showDeleteConfirmation(symptom);
