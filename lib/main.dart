@@ -58,6 +58,7 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'CycleTrack',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         primarySwatch: Colors.brown,
         brightness: Brightness.light,

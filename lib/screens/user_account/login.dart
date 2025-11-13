@@ -15,6 +15,7 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final LocalAuthentication auth = LocalAuthentication();
   final TextEditingController controller = TextEditingController();
+  final FocusNode _pinFocusNode = FocusNode(); // Create a FocusNode
   final DatabaseHelper _dbHelper = DatabaseHelper();
   bool biometricAvailable = false;
   bool isLoading = false;
@@ -24,6 +25,13 @@ class _LoginPageState extends State<LoginPage> {
   void initState() {
     super.initState();
     _loadInitialData();
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    _pinFocusNode.dispose(); // Dispose the FocusNode
+    super.dispose();
   }
 
   Future<void> _loadInitialData() async {
@@ -49,9 +57,12 @@ class _LoginPageState extends State<LoginPage> {
         });
         if (biometricAvailable && _user != null && _user!['access_empreinte'] == 1) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) {
-              _biometricAuthentication();
-            }
+            if (mounted) _biometricAuthentication();
+          });
+        } else {
+          // If biometric is not triggered, explicitly request focus for the PIN field.
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _pinFocusNode.requestFocus();
           });
         }
       }
@@ -69,18 +80,18 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        title: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.lock_outline),
+            SizedBox(width: 8),
+            Text('CycleTrack verrouillé'),
+          ],
+        ),
+        foregroundColor: Colors.white,
         elevation: 6,
         toolbarHeight: 65,
         backgroundColor: Colors.brown,
-        title: const Text(
-          "Authentification",
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-            color: Colors.white,
-            letterSpacing: 1.2,
-          ),
-        ),
         centerTitle: true,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(bottom: Radius.circular(6)),
@@ -91,16 +102,16 @@ class _LoginPageState extends State<LoginPage> {
           child: Column(
             children: [
               const SizedBox(height: 24),
-              const Text("Entrer pin", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: Colors.black)),
+              const Text("Déverrouillage par code PIN", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: Colors.black)),
               const SizedBox(height: 10),
               const Text("Veuillez entrer votre code pin de 4 chiffres !", style: TextStyle(fontStyle: FontStyle.italic), textAlign: TextAlign.center),
               const SizedBox(height: 10),
               Pinput(
+                focusNode: _pinFocusNode, // Assign the FocusNode
                 controller: controller,
                 length: 4,
                 onCompleted: _onCompleted,
                 obscureText: true,
-                autofocus: true,
               ),
 
               const SizedBox(height: 12),

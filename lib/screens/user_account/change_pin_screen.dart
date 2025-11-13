@@ -19,6 +19,28 @@ class _ChangePinScreenState extends State<ChangePinScreen> {
   bool _oldPinVisible = false;
   bool _newPinVisible = false;
   bool _confirmPinVisible = false;
+  bool _biometricAccessEnabled = false;
+  bool _isLoadingBiometricStatus = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBiometricStatus();
+  }
+
+  Future<void> _loadBiometricStatus() async {
+    final user = await _dbHelper.getUser();
+    if (mounted && user != null) {
+      setState(() {
+        _biometricAccessEnabled = user['access_empreinte'] == 1;
+        _isLoadingBiometricStatus = false;
+      });
+    } else if (mounted) {
+      setState(() {
+        _isLoadingBiometricStatus = false;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -65,6 +87,22 @@ class _ChangePinScreenState extends State<ChangePinScreen> {
     }
   }
 
+  Future<void> _onBiometricToggle(bool value) async {
+    setState(() {
+      _biometricAccessEnabled = value;
+    });
+    await _dbHelper.updateUser({'access_empreinte': value ? 1 : 0});
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('Accès par empreinte ${value ? "activé" : "désactivé"}.'),
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+            ), 
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -83,7 +121,7 @@ class _ChangePinScreenState extends State<ChangePinScreen> {
         toolbarHeight: 70,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(
-            bottom: Radius.circular(30),
+            bottom: Radius.circular(6),
           ),
         ),
       ),
@@ -98,7 +136,7 @@ class _ChangePinScreenState extends State<ChangePinScreen> {
                 controller: _oldPinController,
                 obscureText: !_oldPinVisible,
                 keyboardType: TextInputType.number,
-                maxLength: 4, // Changed to 4
+                maxLength: 4, 
                 decoration: InputDecoration(
                   labelText: 'Ancien code PIN',
                   prefixIcon: const Icon(Icons.lock_open_outlined),
@@ -109,7 +147,7 @@ class _ChangePinScreenState extends State<ChangePinScreen> {
                   ),
                 ),
                 validator: (value) {
-                  if (value == null || value.length != 4) return 'Veuillez entrer un code à 4 chiffres.'; // Changed to 4
+                  if (value == null || value.length != 4) return 'Veuillez entrer un code à 4 chiffres.';
                   return null;
                 },
               ),
@@ -118,7 +156,7 @@ class _ChangePinScreenState extends State<ChangePinScreen> {
                 controller: _newPinController,
                 obscureText: !_newPinVisible,
                 keyboardType: TextInputType.number,
-                maxLength: 4, // Changed to 4
+                maxLength: 4, 
                 decoration: InputDecoration(
                   labelText: 'Nouveau code PIN',
                   prefixIcon: const Icon(Icons.lock_outline),
@@ -129,7 +167,7 @@ class _ChangePinScreenState extends State<ChangePinScreen> {
                   ),
                 ),
                 validator: (value) {
-                  if (value == null || value.length != 4) return 'Veuillez entrer un code à 4 chiffres.'; // Changed to 4
+                  if (value == null || value.length != 4) return 'Veuillez entrer un code à 4 chiffres.';
                   if (value == _oldPinController.text) return 'Le nouveau code PIN doit être différent.';
                   return null;
                 },
@@ -139,7 +177,7 @@ class _ChangePinScreenState extends State<ChangePinScreen> {
                 controller: _confirmPinController,
                 obscureText: !_confirmPinVisible,
                 keyboardType: TextInputType.number,
-                maxLength: 4, // Changed to 4
+                maxLength: 4, 
                 decoration: InputDecoration(
                   labelText: 'Confirmer le nouveau PIN',
                   prefixIcon: const Icon(Icons.lock_person_outlined),
@@ -150,7 +188,7 @@ class _ChangePinScreenState extends State<ChangePinScreen> {
                   ),
                 ),
                 validator: (value) {
-                   if (value == null || value.length != 4) return 'Veuillez entrer un code à 4 chiffres.'; // Changed to 4
+                   if (value == null || value.length != 4) return 'Veuillez entrer un code à 4 chiffres.';
                   if (value != _newPinController.text) return 'Les codes PIN ne correspondent pas.';
                   return null;
                 },
@@ -169,6 +207,18 @@ class _ChangePinScreenState extends State<ChangePinScreen> {
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                     ),
+              const SizedBox(height: 20),
+              const Divider(),
+              const SizedBox(height: 10),
+              _isLoadingBiometricStatus
+                ? const Center(child: Padding(padding: EdgeInsets.symmetric(vertical: 8.0), child: CircularProgressIndicator(strokeWidth: 2)))
+                : SwitchListTile(
+                    title: const Text("Activer l\'accès par empreinte digitale"),
+                    value: _biometricAccessEnabled,
+                    onChanged: _onBiometricToggle,
+                    secondary: const Icon(Icons.fingerprint),
+                    activeColor: Colors.brown,
+                  ),
             ],
           ),
         ),
