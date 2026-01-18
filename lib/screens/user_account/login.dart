@@ -4,6 +4,7 @@ import 'package:local_auth/local_auth.dart';
 import 'package:another_flushbar/flushbar.dart';
 import 'package:cycles/screens/home/home_screen.dart';
 import 'package:cycles/database/database_helper.dart';
+import 'package:flutter/services.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -15,7 +16,7 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final LocalAuthentication auth = LocalAuthentication();
   final TextEditingController controller = TextEditingController();
-  final FocusNode _pinFocusNode = FocusNode(); // Create a FocusNode
+  final FocusNode _pinFocusNode = FocusNode();
   final DatabaseHelper _dbHelper = DatabaseHelper();
   bool biometricAvailable = false;
   bool isLoading = false;
@@ -30,13 +31,13 @@ class _LoginPageState extends State<LoginPage> {
   @override
   void dispose() {
     controller.dispose();
-    _pinFocusNode.dispose(); // Dispose the FocusNode
+    _pinFocusNode.dispose();
     super.dispose();
   }
 
   Future<void> _loadInitialData() async {
-    await _loadUser(); 
-    await _checkBiometricAvailability(); 
+    await _loadUser();
+    await _checkBiometricAvailability();
   }
 
   Future<void> _loadUser() async {
@@ -55,14 +56,15 @@ class _LoginPageState extends State<LoginPage> {
         setState(() {
           biometricAvailable = available;
         });
-        if (biometricAvailable && _user != null && _user!['access_empreinte'] == 1) {
+        if (biometricAvailable &&
+            _user != null &&
+            _user!['access_empreinte'] == 1) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) _biometricAuthentication();
           });
         } else {
-          // If biometric is not triggered, explicitly request focus for the PIN field.
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) _pinFocusNode.requestFocus();
+            if (mounted) _focusPinField();
           });
         }
       }
@@ -102,24 +104,35 @@ class _LoginPageState extends State<LoginPage> {
           child: Column(
             children: [
               const SizedBox(height: 24),
-              const Text("Déverrouillage par code PIN", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: Colors.black)),
+              const Text("Déverrouillage par code PIN",
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 22,
+                      color: Colors.black)),
               const SizedBox(height: 10),
-              const Text("Veuillez entrer votre code pin de 4 chiffres !", style: TextStyle(fontStyle: FontStyle.italic), textAlign: TextAlign.center),
+              const Text("Veuillez entrer votre code pin de 4 chiffres !",
+                  style: TextStyle(fontStyle: FontStyle.italic),
+                  textAlign: TextAlign.center),
               const SizedBox(height: 10),
               Pinput(
-                focusNode: _pinFocusNode, // Assign the FocusNode
+                focusNode: _pinFocusNode,
                 controller: controller,
                 length: 4,
                 onCompleted: _onCompleted,
                 obscureText: true,
               ),
-
               const SizedBox(height: 12),
               const Spacer(),
-              if (biometricAvailable && _user != null && _user!['access_empreinte'] == 1) 
+              if (biometricAvailable &&
+                  _user != null &&
+                  _user!['access_empreinte'] == 1)
                 Column(
                   children: <Widget>[
-                    const Text("OU", style: TextStyle(fontSize: 23, fontWeight: FontWeight.bold, color: Colors.black)),
+                    const Text("OU",
+                        style: TextStyle(
+                            fontSize: 23,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black)),
                     const SizedBox(height: 38),
                     InkWell(
                       onTap: _biometricAuthentication,
@@ -132,20 +145,22 @@ class _LoginPageState extends State<LoginPage> {
                           color: Colors.brown,
                           border: Border.all(color: Colors.brown),
                         ),
-                        child: isLoading 
+                        child: isLoading
                             ? const CircularProgressIndicator(
                           color: Colors.white,
                           strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white),
                         )
-                            : const Icon(Icons.fingerprint, size: 65, color: Colors.white),
+                            : const Icon(Icons.fingerprint,
+                            size: 65, color: Colors.white),
                       ),
                     ),
                     const SizedBox(height: 16),
                     const Text("Empreinte biométrique"),
                   ],
                 ),
-                 const SizedBox(height: 30), 
+              const SizedBox(height: 30),
             ],
           ),
         ),
@@ -155,12 +170,11 @@ class _LoginPageState extends State<LoginPage> {
 
   void _onCompleted(String enteredPin) {
     if (_user == null) {
-       _showFlushbar("Veuillez d'abord créer un code PIN.", Colors.orangeAccent);
+      _showFlushbar("Veuillez d'abord créer un code PIN.", Colors.orangeAccent);
       return;
     }
     if (enteredPin == _user!['user_pin'].toString()) {
       _redirectionHome();
-      _showFlushbar("Nous vous souhaitons la bienvenue !", Colors.blue);
     } else {
       _showFlushbar("Votre code pin de 4 chiffres est incorrect !", Colors.red);
       controller.clear();
@@ -188,20 +202,24 @@ class _LoginPageState extends State<LoginPage> {
       bool authenticated = await auth.authenticate(
         localizedReason: 'Déverrouillage par empreinte biométrique !',
         options: const AuthenticationOptions(
-          biometricOnly: true, 
-          useErrorDialogs: true, 
-          stickyAuth: true, 
+          biometricOnly: true,
+          useErrorDialogs: true,
+          stickyAuth: true,
         ),
       );
 
-      if (mounted) { 
+      if (mounted) {
         setState(() {
           isLoading = false;
         });
 
         if (authenticated) {
           _redirectionHome();
-          _showFlushbar("Bienvenue 👋", Colors.blue);
+        } else {
+          controller.clear();
+          Future.delayed(const Duration(milliseconds: 50), () {
+            _focusPinField();
+          });
         }
       }
     } catch (e) {
@@ -210,12 +228,24 @@ class _LoginPageState extends State<LoginPage> {
         setState(() {
           isLoading = false;
         });
+        controller.clear();
+        Future.delayed(const Duration(milliseconds: 50), () {
+          _focusPinField();
+        });
       }
     }
   }
 
+  /// Force le focus sur le champ PIN et ouvre le clavier
+  Future<void> _focusPinField() async {
+    if (!mounted) return;
+    FocusScope.of(context).requestFocus(_pinFocusNode);
+    await Future.delayed(const Duration(milliseconds: 50));
+    SystemChannels.textInput.invokeMethod('TextInput.show');
+  }
+
   void _showFlushbar(String message, Color color) {
-    if (!mounted) return; 
+    if (!mounted) return;
     Flushbar(
       message: message,
       backgroundColor: color,

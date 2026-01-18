@@ -12,7 +12,8 @@ class NotificationService {
   factory NotificationService() => _instance;
   NotificationService._internal();
 
-  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+  FlutterLocalNotificationsPlugin();
   bool _isReady = false;
   bool get isReady => _isReady;
 
@@ -20,8 +21,10 @@ class NotificationService {
     try {
       tz.initializeTimeZones();
 
-      const androidSettings = AndroidInitializationSettings('@mipmap/launch_icon');
-      const initializationSettings = InitializationSettings(android: androidSettings);
+      const androidSettings =
+      AndroidInitializationSettings('@mipmap/launch_icon');
+      const initializationSettings =
+      InitializationSettings(android: androidSettings);
 
       await flutterLocalNotificationsPlugin.initialize(
         initializationSettings,
@@ -46,11 +49,16 @@ class NotificationService {
   Future<void> _requestPermissions() async {
     try {
       if (Platform.isAndroid) {
-        final androidImpl = flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+        final androidImpl = flutterLocalNotificationsPlugin
+            .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
         await androidImpl?.requestNotificationsPermission();
       } else if (Platform.isIOS) {
-        final iosImpl = flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
-        await iosImpl?.requestPermissions(alert: true, badge: true, sound: true);
+        final iosImpl = flutterLocalNotificationsPlugin
+            .resolvePlatformSpecificImplementation<
+            IOSFlutterLocalNotificationsPlugin>();
+        await iosImpl?.requestPermissions(
+            alert: true, badge: true, sound: true);
       }
     } catch (e) {
       debugPrint('❌ Erreur permissions: $e');
@@ -62,10 +70,13 @@ class NotificationService {
       if (Platform.isAndroid) {
         final androidInfo = await DeviceInfoPlugin().androidInfo;
         if (androidInfo.version.sdkInt >= 31) {
-          final androidImpl = flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+          final androidImpl = flutterLocalNotificationsPlugin
+              .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>();
           final granted = await androidImpl?.canScheduleExactNotifications();
           if (granted != null && !granted) {
-            const intent = AndroidIntent(action: 'android.settings.REQUEST_SCHEDULE_EXACT_ALARM');
+            const intent = AndroidIntent(
+                action: 'android.settings.REQUEST_SCHEDULE_EXACT_ALARM');
             await intent.launch();
           }
         }
@@ -92,7 +103,8 @@ class NotificationService {
       scheduledDate.year,
       scheduledDate.month,
       scheduledDate.day,
-      9,
+      scheduledDate.hour,
+      scheduledDate.minute,
     );
 
     const notificationDetails = NotificationDetails(
@@ -113,10 +125,11 @@ class NotificationService {
         scheduledTZDate,
         notificationDetails,
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
         matchDateTimeComponents: repeatDaily ? DateTimeComponents.time : null,
       );
-      if (kDebugMode) print('✅ Notification #$id planifiée pour $scheduledTZDate');
+      if (kDebugMode) {
+        print('✅ Notification #$id planifiée pour $scheduledTZDate');
+      }
     } catch (e, stack) {
       debugPrint('❌ Erreur planification notification #$id: $e');
       debugPrintStack(stackTrace: stack);
@@ -142,7 +155,6 @@ class NotificationService {
       return;
     }
 
-    // TEMPORAIRE : désactivation en release pour éviter crash
     if (kReleaseMode) {
       debugPrint('⚠️ cancelAllNotifications désactivé en release.');
       return;
