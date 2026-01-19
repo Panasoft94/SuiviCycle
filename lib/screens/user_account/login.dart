@@ -178,6 +178,10 @@ class _LoginPageState extends State<LoginPage> {
     } else {
       _showFlushbar("Votre code pin de 4 chiffres est incorrect !", Colors.red);
       controller.clear();
+      // ⚡ Correction : refocus + clavier automatique
+      Future.delayed(const Duration(milliseconds: 50), () {
+        _focusPinField();
+      });
     }
   }
 
