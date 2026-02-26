@@ -27,9 +27,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   ];
 
   static const List<IconData> _widgetIcons = <IconData>[
-    Icons.water_drop_outlined,
-    Icons.settings_outlined,
-    Icons.people_outline,
+    Icons.water_drop_rounded,
+    Icons.settings_suggest_rounded,
+    Icons.favorite_rounded,
   ];
 
   @override
@@ -63,35 +63,34 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   @override
   Widget build(BuildContext context) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(_widgetIcons[_tabController.index]),
-            const SizedBox(width: 8),
-            Text(_widgetTitles[_tabController.index]),
-          ],
-        ),
-        centerTitle: true,
-        backgroundColor: Colors.brown,
-        foregroundColor: Colors.white,
-        toolbarHeight: 70, // Increased height
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            bottom: Radius.circular(6), // Rounded bottom corners
+        title: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 300),
+          child: Row(
+            key: ValueKey(_tabController.index),
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(_widgetIcons[_tabController.index], color: colorScheme.primary, size: 22),
+              const SizedBox(width: 10),
+              Text(_widgetTitles[_tabController.index], style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+            ],
           ),
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.help_outline),
-            tooltip: 'Aide',
-            onPressed: () {
-              Navigator.push(context, _slideTransition(const AideScreen()));
-            },
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: IconButton(
+              icon: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(color: colorScheme.primary.withAlpha(20), shape: BoxShape.circle),
+                child: Icon(Icons.help_rounded, color: colorScheme.primary, size: 20),
+              ),
+              onPressed: () => Navigator.push(context, _slideTransition(const AideScreen())),
+            ),
           ),
         ],
       ),
@@ -100,43 +99,35 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         children: _widgetOptions,
       ),
       bottomNavigationBar: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        margin: EdgeInsets.fromLTRB(24, 0, 24, MediaQuery.of(context).padding.bottom + 12),
         decoration: BoxDecoration(
-          color: isDarkMode ? Colors.white : Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(25),
+          color: colorScheme.surface,
+          borderRadius: BorderRadius.circular(30),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              spreadRadius: 1,
-              blurRadius: 20,
-              offset: Offset.zero, // Centered shadow
+              color: Colors.black.withAlpha(15),
+              blurRadius: 25,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(25),
+          borderRadius: BorderRadius.circular(30),
           child: TabBar(
             controller: _tabController,
             tabs: const <Tab>[
-              Tab(
-                icon: Icon(Icons.dashboard),
-                text: 'Dashboard',
-              ),
-              Tab(
-                icon: Icon(Icons.settings),
-                text: 'Paramètres',
-              ),
-              Tab(
-                icon: Icon(Icons.people),
-                text: 'Mode Couple',
-              ),
+              Tab(icon: Icon(Icons.dashboard_rounded), text: 'Suivi'),
+              Tab(icon: Icon(Icons.settings_rounded), text: 'Réglages'),
+              Tab(icon: Icon(Icons.people_rounded), text: 'Couple'),
             ],
-            labelColor: Colors.brown,
-            unselectedLabelColor: Colors.grey,
-            indicator: BoxDecoration(
-              borderRadius: BorderRadius.circular(25),
-              color: Colors.brown.withOpacity(0.1),
-            ),
+            labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+            unselectedLabelStyle: const TextStyle(fontSize: 11),
+            labelColor: colorScheme.primary,
+            unselectedLabelColor: colorScheme.onSurfaceVariant.withAlpha(150),
+            indicatorColor: Colors.transparent,
+            dividerColor: Colors.transparent,
+            splashFactory: NoSplash.splashFactory,
+            overlayColor: WidgetStateProperty.all(Colors.transparent),
           ),
         ),
       ),

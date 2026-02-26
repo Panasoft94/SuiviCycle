@@ -54,6 +54,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return FutureBuilder<AppSettings>(
       future: _settingsFuture,
       builder: (context, snapshot) {
@@ -67,55 +68,45 @@ class _SettingsScreenState extends State<SettingsScreen> {
         final settings = snapshot.data!;
 
         return ListView(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(20.0),
           children: [
-            Text('Cycle', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Card(
-              elevation: 4, 
-              child: _buildCycleLengthTile(settings),
-            ),
+            _buildSectionHeader('Cycle & Prédictions'),
+            _buildSettingsCard([
+              _buildCycleLengthTile(settings),
+            ]),
             const SizedBox(height: 24),
 
-            Text('Notifications', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Card(
-              elevation: 4, 
-              child: Column(
-                children: [
-                  _buildNotificationTile('Notifications des règles', settings.notifyPeriod, (value) {
-                    _updateSettings(AppSettings(
-                      id: settings.id,
-                      defaultCycleLength: settings.defaultCycleLength,
-                      notifyPeriod: value,
-                      notifyOvulation: settings.notifyOvulation,
-                      theme: settings.theme,
-                    ));
-                  }),
-                  const Divider(indent: 16, endIndent: 16),
-                  _buildNotificationTile('Notifications d\'ovulation', settings.notifyOvulation, (value) {
-                    _updateSettings(AppSettings(
-                      id: settings.id,
-                      defaultCycleLength: settings.defaultCycleLength,
-                      notifyPeriod: settings.notifyPeriod,
-                      notifyOvulation: value,
-                      theme: settings.theme,
-                    ));
-                  }),
-                ],
-              ),
-            ),
+            _buildSectionHeader('Notifications'),
+            _buildSettingsCard([
+              _buildNotificationTile('Notifications des règles', settings.notifyPeriod, (value) {
+                _updateSettings(AppSettings(
+                  id: settings.id,
+                  defaultCycleLength: settings.defaultCycleLength,
+                  notifyPeriod: value,
+                  notifyOvulation: settings.notifyOvulation,
+                  theme: settings.theme,
+                ));
+              }),
+              const Divider(indent: 70, height: 1),
+              _buildNotificationTile('Notifications d\'ovulation', settings.notifyOvulation, (value) {
+                _updateSettings(AppSettings(
+                  id: settings.id,
+                  defaultCycleLength: settings.defaultCycleLength,
+                  notifyPeriod: settings.notifyPeriod,
+                  notifyOvulation: value,
+                  theme: settings.theme,
+                ));
+              }),
+            ]),
             const SizedBox(height: 24),
             
-            Text('Sécurité', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Card(
-              elevation: 4,
-              child: ListTile(
-                leading: const Icon(Icons.security_outlined),
-                title: const Text('Sécurité du compte'),
-                subtitle: const Text('Gérer l\'accès par code PIN'),
-                trailing: const Icon(Icons.arrow_forward_ios),
+            _buildSectionHeader('Sécurité'),
+            _buildSettingsCard([
+              ListTile(
+                leading: _buildIconContainer(Icons.security_rounded, Colors.green),
+                title: const Text('Confidentialité', style: TextStyle(fontWeight: FontWeight.w500)),
+                subtitle: const Text('PIN & Biométrie'),
+                trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: () async {
                   final bool userExists = await _dbHelper.hasUser();
                   if (!mounted) return;
@@ -126,46 +117,70 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   }
                 },
               ),
-            ),
+            ]),
             const SizedBox(height: 24),
 
-            Text('Apparence', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Card(
-              elevation: 4, 
-              child: _buildThemeTile(settings),
-            ),
+            _buildSectionHeader('Personnalisation'),
+            _buildSettingsCard([
+              _buildThemeTile(settings),
+            ]),
             const SizedBox(height: 24),
 
-            Text('Données', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Card(
-              elevation: 4, 
-              child: Column(
-                children: [
-                  ListTile(
-                    leading: const Icon(Icons.backup_outlined),
-                    title: const Text('Sauvegarder les données'),
-                    onTap: () => _backupService.backupDatabase(context),
-                  ),
-                  const Divider(indent: 16, endIndent: 16),
-                  ListTile(
-                    leading: const Icon(Icons.restore_page_outlined),
-                    title: const Text('Restaurer les données'),
-                    onTap: () => _showRestoreConfirmation(context),
-                  ),
-                  const Divider(indent: 16, endIndent: 16),
-                  ListTile(
-                    leading: Icon(Icons.delete_forever_outlined, color: Colors.red[700]),
-                    title: Text('Réinitialiser l\'application', style: TextStyle(color: Colors.red[700])),
-                    onTap: () => _showResetConfirmation(context),
-                  ),
-                ],
-              ),
-            ),
+            _buildSectionHeader('Maintenance des données'),
+            _buildSettingsCard([
+              _buildActionTile(Icons.backup_rounded, 'Sauvegarder', Colors.blue, () => _backupService.backupDatabase(context)),
+              const Divider(indent: 70, height: 1),
+              _buildActionTile(Icons.restore_page_rounded, 'Restaurer', Colors.orange, () => _showRestoreConfirmation(context)),
+              const Divider(indent: 70, height: 1),
+              _buildActionTile(Icons.delete_forever_rounded, 'Réinitialiser', Colors.red, () => _showResetConfirmation(context), isDestructive: true),
+            ]),
+            const SizedBox(height: 40),
           ],
         );
       },
+    );
+  }
+
+  Widget _buildSettingsCard(List<Widget> children) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Container(
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: colorScheme.outlineVariant.withAlpha(80)),
+      ),
+      child: Column(children: children),
+    );
+  }
+
+  Widget _buildIconContainer(IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(color: color.withAlpha(20), borderRadius: BorderRadius.circular(12)),
+      child: Icon(icon, color: color, size: 22),
+    );
+  }
+
+  Widget _buildActionTile(IconData icon, String title, Color color, VoidCallback onTap, {bool isDestructive = false}) {
+    return ListTile(
+      leading: _buildIconContainer(icon, color),
+      title: Text(title, style: TextStyle(fontWeight: FontWeight.w500, color: isDestructive ? Colors.red : null)),
+      onTap: onTap,
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 12),
+      child: Text(
+        title.toUpperCase(),
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+          color: Theme.of(context).colorScheme.primary.withAlpha(180),
+          letterSpacing: 1.2,
+        ),
+      ),
     );
   }
 
@@ -225,11 +240,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   ListTile _buildCycleLengthTile(AppSettings settings) {
+    final colorScheme = Theme.of(context).colorScheme;
     return ListTile(
-      leading: const Icon(Icons.sync_alt),
-      title: const Text('Durée du cycle par défaut'),
+      leading: _buildIconContainer(Icons.sync_alt_rounded, colorScheme.primary),
+      title: const Text('Durée du cycle', style: TextStyle(fontWeight: FontWeight.w500)),
       subtitle: Text('${settings.defaultCycleLength} jours'),
-      trailing: const Icon(Icons.arrow_forward_ios),
+      trailing: const Icon(Icons.chevron_right_rounded),
       onTap: () async {
         final newLength = await _showCycleLengthPicker(context, settings.defaultCycleLength);
         if (newLength != null && newLength != settings.defaultCycleLength) {
@@ -247,19 +263,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   SwitchListTile _buildNotificationTile(String title, bool value, ValueChanged<bool> onChanged) {
     return SwitchListTile(
-      secondary: const Icon(Icons.notifications_active_outlined),
-      title: Text(title),
+      secondary: _buildIconContainer(Icons.notifications_active_rounded, Theme.of(context).colorScheme.primary),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 15)),
       value: value,
       onChanged: onChanged,
     );
   }
 
   ListTile _buildThemeTile(AppSettings settings) {
+    final colorScheme = Theme.of(context).colorScheme;
     return ListTile(
-      leading: const Icon(Icons.color_lens_outlined),
-      title: const Text("Thème de l'application"),
-      subtitle: Text(settings.theme == 'light' ? 'Clair' : 'Sombre'),
-      trailing: const Icon(Icons.arrow_forward_ios),
+      leading: _buildIconContainer(Icons.palette_rounded, colorScheme.primary),
+      title: const Text("Thème visuel", style: TextStyle(fontWeight: FontWeight.w500)),
+      subtitle: Text(settings.theme == 'light' ? 'Mode Clair' : 'Mode Sombre'),
+      trailing: const Icon(Icons.chevron_right_rounded),
       onTap: () {
         final newTheme = settings.theme == 'light' ? 'dark' : 'light';
         _updateSettings(AppSettings(

@@ -5,142 +5,170 @@ class AideScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('À Propos de CycleTrack'),
-        backgroundColor: Colors.brown,
-        foregroundColor: Colors.white,
+        title: const Text('À Propos', style: TextStyle(fontWeight: FontWeight.bold)),
         centerTitle: true,
-        toolbarHeight: 70,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            bottom: Radius.circular(6),
+        elevation: 0,
+        backgroundColor: colorScheme.surface,
+        foregroundColor: colorScheme.onSurface,
+        leading: IconButton(
+          icon: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withAlpha(13),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: colorScheme.primary),
           ),
+          onPressed: () => Navigator.of(context).pop(),
         ),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(20.0),
         children: [
           Center(
-            child: Icon(Icons.water_drop_outlined, size: 60, color: Colors.brown[300]),
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: colorScheme.primary.withAlpha(26),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.water_drop_rounded, size: 48, color: colorScheme.primary),
+            ),
           ),
-          const SizedBox(height: 16),
-          Text(
+          const SizedBox(height: 24),
+          const Text(
             'CycleTrack',
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
+            style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           Text(
             'Votre compagnon personnel pour un suivi simple et intelligent de votre cycle menstruel.',
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.titleMedium,
+            style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 16),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 40),
           _buildFeatureCard(
-            context,
-            icon: Icons.track_changes,
-            title: 'Suivi de Cycle Intelligent',
-            content: 'Enregistrez vos règles et laissez CycleTrack calculer automatiquement la durée de votre cycle, estimer vos prochaines règles et prédire votre date d\'ovulation. Notre algorithme s\'adapte à vous pour des prédictions de plus en plus précises.',
+            icon: Icons.track_changes_rounded,
+            title: 'Suivi Intelligent',
+            content: 'Enregistrez vos règles et laissez CycleTrack calculer automatiquement la durée de votre cycle et estimer vos prochaines dates importantes.',
           ),
           const SizedBox(height: 16),
           _buildFeatureCard(
-            context,
-            icon: Icons.edit_note,
+            icon: Icons.edit_note_rounded,
             title: 'Journal Quotidien',
-            content: 'Notez chaque jour vos symptômes, votre humeur, votre niveau d\'énergie et plus encore. Visualisez ensuite vos tendances grâce à des graphiques clairs pour mieux comprendre votre corps.',
+            content: 'Notez chaque jour vos symptômes et humeurs pour visualiser vos tendances grâce à des graphiques clairs.',
           ),
           const SizedBox(height: 16),
           _buildFeatureCard(
-            context,
-            icon: Icons.insights,
-            title: 'Statistiques et Calendrier Visuel',
-            content: 'Consultez votre historique complet sur un calendrier visuel (heatmap) et accédez à des statistiques clés, comme la durée moyenne de vos cycles et de vos règles.',
+            icon: Icons.insights_rounded,
+            title: 'Statistiques Clés',
+            content: 'Consultez votre historique complet sur un calendrier visuel et accédez à des analyses précises de vos cycles.',
           ),
-           const SizedBox(height: 16),
+          const SizedBox(height: 16),
           _buildFeatureCard(
-            context,
-            icon: Icons.people_outline,
+            icon: Icons.people_rounded,
             title: 'Mode Couple',
-            content: 'Partagez des informations clés avec votre partenaire de manière simple et respectueuse, pour l\'aider à mieux vous comprendre et vous soutenir tout au long de votre cycle.',
+            content: 'Partagez des informations clés avec votre partenaire pour une meilleure compréhension mutuelle.',
           ),
-          const SizedBox(height: 24),
-          _buildDeveloperCard(context),
           const SizedBox(height: 32),
+          _buildDeveloperSection(colorScheme),
+          const SizedBox(height: 48),
           Center(
             child: Text(
               'Version 1.0.6',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey),
+              style: TextStyle(color: colorScheme.outline, fontSize: 12, fontWeight: FontWeight.w500),
             ),
           ),
+          const SizedBox(height: 24),
         ],
       ),
     );
   }
 
-  Widget _buildFeatureCard(BuildContext context, {required IconData icon, required String title, required String content}) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, color: Colors.brown, size: 28),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+  Widget _buildFeatureCard({required IconData icon, required String title, required String content}) {
+    return Builder(
+      builder: (context) {
+        final colorScheme = Theme.of(context).colorScheme;
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: colorScheme.surface,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: colorScheme.outlineVariant.withAlpha(128)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: colorScheme.primary.withAlpha(26),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(icon, color: colorScheme.primary, size: 22),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(content, style: Theme.of(context).textTheme.bodyLarge),
-          ],
-        ),
+                  const SizedBox(width: 12),
+                  Text(
+                    title,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                content,
+                style: TextStyle(color: colorScheme.onSurfaceVariant, height: 1.5),
+              ),
+            ],
+          ),
+        );
+      }
+    );
+  }
+
+  Widget _buildDeveloperSection(ColorScheme colorScheme) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Développeur', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+          const SizedBox(height: 16),
+          const Text('Anicet DJIMTOLOUMA', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          Text('Analyste & Programmeur', style: TextStyle(color: colorScheme.onSurfaceVariant)),
+          const SizedBox(height: 20),
+          _buildDevContactRow(Icons.email_rounded, 'webmasterdjim@gmail.com', colorScheme),
+          const SizedBox(height: 8),
+          _buildDevContactRow(Icons.phone_rounded, '+236 72 39 59 35', colorScheme),
+        ],
       ),
     );
   }
 
-  Widget _buildDeveloperCard(BuildContext context) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Développeur', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
-            const Divider(),
-            const SizedBox(height: 12),
-            const Text('Anicet DJIMTOLOUMA', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const Text('Analyste & Programmeur', style: TextStyle(fontSize: 16, fontStyle: FontStyle.italic)),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                const Icon(Icons.email_outlined, size: 18),
-                const SizedBox(width: 8),
-                const Text('webmasterdjim@gmail.com'),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                const Icon(Icons.phone_outlined, size: 18),
-                const SizedBox(width: 8),
-                const Text('236 72 39 59 35'),
-              ],
-            ),
-          ],
-        ),
-      ),
+  Widget _buildDevContactRow(IconData icon, String text, ColorScheme colorScheme) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: colorScheme.primary),
+        const SizedBox(width: 12),
+        Text(text, style: const TextStyle(fontSize: 14)),
+      ],
     );
   }
 }

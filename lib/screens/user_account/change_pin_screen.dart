@@ -105,24 +105,31 @@ class _ChangePinScreenState extends State<ChangePinScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
-        title: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.lock_outline),
-            SizedBox(width: 8),
-            Text('Changer le code PIN'),
-          ],
-        ),
+        title: const Text('Sécurité du compte', style: TextStyle(fontWeight: FontWeight.bold)),
         centerTitle: true,
-        backgroundColor: Colors.brown,
-        foregroundColor: Colors.white,
-        toolbarHeight: 70,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            bottom: Radius.circular(6),
+        elevation: 0,
+        backgroundColor: colorScheme.surface,
+        foregroundColor: colorScheme.onSurface,
+        leading: IconButton(
+          icon: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withAlpha(13),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: colorScheme.primary),
           ),
+          onPressed: () => Navigator.of(context).pop(),
         ),
       ),
       body: SingleChildScrollView(
@@ -132,97 +139,117 @@ class _ChangePinScreenState extends State<ChangePinScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              TextFormField(
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: colorScheme.primary.withAlpha(26),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.shield_rounded, size: 48, color: colorScheme.primary),
+              ),
+              const SizedBox(height: 32),
+              const Text(
+                "Changer votre code PIN",
+                textAlign: TextAlign.center,
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                "Entrez votre ancien code pour définir un nouveau code de sécurité.",
+                textAlign: TextAlign.center,
+                style: TextStyle(color: colorScheme.onSurfaceVariant),
+              ),
+              const SizedBox(height: 40),
+              _buildPinField(
                 controller: _oldPinController,
-                obscureText: !_oldPinVisible,
-                keyboardType: TextInputType.number,
-                maxLength: 4, 
-                decoration: InputDecoration(
-                  labelText: 'Ancien code PIN',
-                  prefixIcon: const Icon(Icons.lock_open_outlined),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  suffixIcon: IconButton(
-                    icon: Icon(_oldPinVisible ? Icons.visibility_off : Icons.visibility),
-                    onPressed: () => setState(() => _oldPinVisible = !_oldPinVisible),
-                  ),
-                ),
-                validator: (value) {
-                  if (value == null || value.length != 4) return 'Veuillez entrer un code à 4 chiffres.';
-                  return null;
-                },
+                label: 'Ancien code PIN',
+                visible: _oldPinVisible,
+                onToggleVisibility: () => setState(() => _oldPinVisible = !_oldPinVisible),
+                icon: Icons.lock_open_rounded,
               ),
-              const SizedBox(height: 20),
-              TextFormField(
+              const SizedBox(height: 16),
+              _buildPinField(
                 controller: _newPinController,
-                obscureText: !_newPinVisible,
-                keyboardType: TextInputType.number,
-                maxLength: 4, 
-                decoration: InputDecoration(
-                  labelText: 'Nouveau code PIN',
-                  prefixIcon: const Icon(Icons.lock_outline),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                   suffixIcon: IconButton(
-                    icon: Icon(_newPinVisible ? Icons.visibility_off : Icons.visibility),
-                    onPressed: () => setState(() => _newPinVisible = !_newPinVisible),
-                  ),
-                ),
-                validator: (value) {
-                  if (value == null || value.length != 4) return 'Veuillez entrer un code à 4 chiffres.';
-                  if (value == _oldPinController.text) return 'Le nouveau code PIN doit être différent.';
-                  return null;
-                },
+                label: 'Nouveau code PIN',
+                visible: _newPinVisible,
+                onToggleVisibility: () => setState(() => _newPinVisible = !_newPinVisible),
+                icon: Icons.lock_outline_rounded,
               ),
-              const SizedBox(height: 20),
-              TextFormField(
+              const SizedBox(height: 16),
+              _buildPinField(
                 controller: _confirmPinController,
-                obscureText: !_confirmPinVisible,
-                keyboardType: TextInputType.number,
-                maxLength: 4, 
-                decoration: InputDecoration(
-                  labelText: 'Confirmer le nouveau PIN',
-                  prefixIcon: const Icon(Icons.lock_person_outlined),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                   suffixIcon: IconButton(
-                    icon: Icon(_confirmPinVisible ? Icons.visibility_off : Icons.visibility),
-                    onPressed: () => setState(() => _confirmPinVisible = !_confirmPinVisible),
-                  ),
-                ),
-                validator: (value) {
-                   if (value == null || value.length != 4) return 'Veuillez entrer un code à 4 chiffres.';
-                  if (value != _newPinController.text) return 'Les codes PIN ne correspondent pas.';
-                  return null;
-                },
+                label: 'Confirmer le nouveau PIN',
+                visible: _confirmPinVisible,
+                onToggleVisibility: () => setState(() => _confirmPinVisible = !_confirmPinVisible),
+                icon: Icons.lock_person_rounded,
               ),
-              const SizedBox(height: 30),
-              _isSaving
-                  ? const Center(child: CircularProgressIndicator())
-                  : ElevatedButton.icon(
-                      icon: const Icon(Icons.save_as_outlined),
-                      label: const Text('Mettre à jour le code PIN'),
-                      onPressed: _changePin,
-                      style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.brown,
-                          foregroundColor: Colors.white,
-                          minimumSize: const Size(double.infinity, 50),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                    ),
-              const SizedBox(height: 20),
-              const Divider(),
-              const SizedBox(height: 10),
-              _isLoadingBiometricStatus
-                ? const Center(child: Padding(padding: EdgeInsets.symmetric(vertical: 8.0), child: CircularProgressIndicator(strokeWidth: 2)))
-                : SwitchListTile(
-                    title: const Text("Activer l\'accès par empreinte digitale"),
+              const SizedBox(height: 40),
+              if (!_isLoadingBiometricStatus)
+                Container(
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainerLow,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: SwitchListTile(
+                    title: const Text("Accès biométrique"),
+                    subtitle: const Text("Empreinte ou visage"),
+                    secondary: Icon(Icons.fingerprint_rounded, color: colorScheme.primary),
                     value: _biometricAccessEnabled,
                     onChanged: _onBiometricToggle,
-                    secondary: const Icon(Icons.fingerprint),
-                    activeColor: Colors.brown,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                   ),
+                ),
+              const SizedBox(height: 48),
+              _isSaving
+                  ? const Center(child: CircularProgressIndicator())
+                  : ElevatedButton(
+                      onPressed: _changePin,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: colorScheme.primary,
+                        foregroundColor: colorScheme.onPrimary,
+                        minimumSize: const Size(double.infinity, 56),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        elevation: 0,
+                      ),
+                      child: const Text("Sauvegarder", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildPinField({
+    required TextEditingController controller,
+    required String label,
+    required bool visible,
+    required VoidCallback onToggleVisibility,
+    required IconData icon,
+  }) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return TextFormField(
+      controller: controller,
+      obscureText: !visible,
+      keyboardType: TextInputType.number,
+      maxLength: 4,
+      style: const TextStyle(letterSpacing: 8, fontWeight: FontWeight.bold),
+      decoration: InputDecoration(
+        labelText: label,
+        counterText: "",
+        prefixIcon: Icon(icon, color: colorScheme.primary),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+        filled: true,
+        fillColor: colorScheme.surfaceContainerLow,
+        suffixIcon: IconButton(
+          icon: Icon(visible ? Icons.visibility_off_rounded : Icons.visibility_rounded),
+          onPressed: onToggleVisibility,
+        ),
+      ),
+      validator: (value) {
+        if (value == null || value.length != 4) return 'PIN de 4 chiffres requis.';
+        return null;
+      },
     );
   }
 }

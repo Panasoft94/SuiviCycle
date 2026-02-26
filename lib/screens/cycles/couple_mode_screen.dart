@@ -41,46 +41,59 @@ class _CoupleModeScreenState extends State<CoupleModeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: FutureBuilder<Cycle?>(
-        future: _currentCycleFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (!snapshot.hasData || snapshot.data == null) {
-            return _buildEmptyState();
-          }
+    return FutureBuilder<Cycle?>(
+      future: _currentCycleFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (!snapshot.hasData || snapshot.data == null) {
+          return _buildEmptyState();
+        }
 
-          final cycle = snapshot.data!;
-          return _buildPartnerDashboard(cycle);
-        },
-      ),
+        final cycle = snapshot.data!;
+        return _buildPartnerDashboard(cycle);
+      },
     );
   }
 
   Widget _buildEmptyState() {
-    return const Center(
-      child: Padding(
-        padding: EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.people_outline, size: 80, color: Colors.grey),
-            SizedBox(height: 16),
-            Text(
-              'Mode Couple non actif',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
+    final colorScheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(32.0),
+      alignment: Alignment.center,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: colorScheme.primary.withAlpha(26),
+              shape: BoxShape.circle,
             ),
-            SizedBox(height: 8),
-            Text(
-              'Activez le mode couple depuis les paramètres pour partager des informations sur le cycle.',
-              style: TextStyle(fontSize: 16, color: Colors.grey),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
+            child: Icon(Icons.favorite_rounded, size: 64, color: colorScheme.primary),
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'Mode Couple',
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Partagez les étapes de votre cycle avec votre partenaire pour une meilleure compréhension mutuelle.',
+            style: TextStyle(fontSize: 16, color: colorScheme.onSurfaceVariant),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 32),
+          ElevatedButton.icon(
+            onPressed: () {
+              // Redirection vers aide ou paramètres
+            },
+            icon: const Icon(Icons.info_outline_rounded),
+            label: const Text('En savoir plus'),
+          ),
+        ],
       ),
     );
   }
@@ -93,54 +106,117 @@ class _CoupleModeScreenState extends State<CoupleModeScreen> {
         daysUntilPeriod = cycle.expectedPeriod!.difference(DateTime.now()).inDays;
     }
 
-
     return ListView(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.all(20.0),
       children: [
         _buildInfoCard(
-          context,
-          icon: Icons.favorite,
-          iconColor: Colors.pinkAccent,
+          icon: Icons.auto_awesome_rounded,
+          iconColor: Colors.pink,
           title: 'Phase Actuelle',
           content: phaseInfo,
           isLarge: true,
         ),
         const SizedBox(height: 16),
-        if (cycle.ovulationDate != null)
         _buildInfoCard(
-          context,
-          icon: Icons.brightness_high_outlined,
-          iconColor: Colors.deepOrangeAccent,
-          title: 'Date d\'Ovulation Prévue',
-          content: DateFormat('EEEE, d MMMM yyyy', 'fr_FR').format(cycle.ovulationDate!),
-        ),
-        const SizedBox(height: 16),
-        if (daysUntilPeriod > 0)
-        _buildInfoCard(
-          context,
-          icon: Icons.hourglass_bottom,
-          iconColor: Colors.blueAccent,
-          title: 'Prochaines Règles Dans',
-          content: '$daysUntilPeriod jour${daysUntilPeriod > 1 ? 's' : ''}',
-        ),
-        const SizedBox(height: 16),
-        if (cycle.expectedPeriod != null)
-        _buildInfoCard(
-          context,
-          icon: Icons.calendar_today_outlined,
-          iconColor: Colors.purple,
-          title: 'Date Prévue des Règles',
-          content: DateFormat('EEEE, d MMMM yyyy', 'fr_FR').format(cycle.expectedPeriod!),
-        ),
-        const SizedBox(height: 16),
-        _buildInfoCard(
-          context,
-          icon: Icons.lightbulb_outline,
+          icon: Icons.lightbulb_rounded,
           iconColor: Colors.amber,
-          title: 'Conseil du Jour',
+          title: 'Conseil bienveillant',
           content: advice,
         ),
+        const SizedBox(height: 32),
+        _buildSectionHeader('Dates Clés'),
+        if (cycle.ovulationDate != null)
+          _buildCompactDateRow(Icons.brightness_7_rounded, 'Ovulation prévue', cycle.ovulationDate!, Colors.orange),
+        const SizedBox(height: 12),
+        if (cycle.expectedPeriod != null)
+          _buildCompactDateRow(Icons.water_drop_rounded, 'Flux prévu', cycle.expectedPeriod!, Colors.red),
+        const SizedBox(height: 12),
+        if (daysUntilPeriod > 0)
+          _buildCompactInfoRow(Icons.timer_rounded, 'Temps restant', '$daysUntilPeriod jours avant le cycle', Colors.blue),
       ],
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 12),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.bold,
+          color: Theme.of(context).colorScheme.primary,
+          letterSpacing: 1.2,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCompactDateRow(IconData icon, String label, DateTime date, Color color) {
+    final dateStr = DateFormat('EEEE d MMMM', 'fr_FR').format(date);
+    return _buildCompactInfoRow(icon, label, dateStr, color);
+  }
+
+  Widget _buildCompactInfoRow(IconData icon, String label, String value, Color color) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: colorScheme.outlineVariant.withAlpha(128)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(color: color.withAlpha(26), borderRadius: BorderRadius.circular(10)),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(width: 16),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant)),
+              Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+            ],
+          )
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoCard({required IconData icon, required Color iconColor, required String title, required String content, bool isLarge = false}) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: isLarge ? colorScheme.primaryContainer.withAlpha(77) : colorScheme.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: isLarge ? Border.all(color: colorScheme.primary.withAlpha(51)) : Border.all(color: colorScheme.outlineVariant.withAlpha(128)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: iconColor, size: isLarge ? 28 : 20),
+              const SizedBox(width: 10),
+              Text(title, style: TextStyle(fontSize: isLarge ? 18 : 14, fontWeight: FontWeight.bold, color: colorScheme.primary)),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            content,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: isLarge ? 24 : 15,
+              fontWeight: isLarge ? FontWeight.bold : FontWeight.normal,
+              color: colorScheme.onSurface,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -155,38 +231,5 @@ class _CoupleModeScreenState extends State<CoupleModeScreen> {
       default:
         return 'Chaque jour est une nouvelle opportunité de se soutenir mutuellement.';
     }
-  }
-
-  Widget _buildInfoCard(BuildContext context, {required IconData icon, required Color iconColor, required String title, required String content, bool isLarge = false}) {
-    return Card(
-      elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(icon, color: iconColor, size: isLarge ? 32 : 24),
-                const SizedBox(width: 10),
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              content,
-              textAlign: TextAlign.center,
-              style: isLarge
-                  ? Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold, color: Colors.brown)
-                  : Theme.of(context).textTheme.bodyLarge,
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }

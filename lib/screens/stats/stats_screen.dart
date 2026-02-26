@@ -98,17 +98,31 @@ class _StatsScreenState extends State<StatsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Statistiques et Heatmap'),
+        title: const Text('Statistiques', style: TextStyle(fontWeight: FontWeight.bold)),
         centerTitle: true,
-        backgroundColor: Colors.brown,
-        foregroundColor: Colors.white,
-        toolbarHeight: 70,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            bottom: Radius.circular(6),
+        elevation: 0,
+        backgroundColor: colorScheme.surface,
+        foregroundColor: colorScheme.onSurface,
+        leading: IconButton(
+          icon: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withAlpha(13),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: colorScheme.primary),
           ),
+          onPressed: () => Navigator.of(context).pop(),
         ),
       ),
       body: FutureBuilder<Map<String, dynamic>>(
@@ -125,40 +139,43 @@ class _StatsScreenState extends State<StatsScreen> {
           final heatmapData = data['heatmapData'] as Map<DateTime, int>;
 
           return SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(20.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Center(
-                  child: Text('Calendrier du Cycle', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
+                _buildSectionHeader('Calendrier'),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainerLow,
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: heatmapData.isNotEmpty
+                      ? HeatMapCalendar(
+                          datasets: heatmapData,
+                          colorsets: _colorMapping,
+                          colorMode: ColorMode.color,
+                          defaultColor: Colors.transparent,
+                          textColor: colorScheme.onSurface,
+                          showColorTip: false,
+                          monthFontSize: 16,
+                        )
+                      : const Padding(
+                          padding: EdgeInsets.all(20.0),
+                          child: Center(child: Text('Aucune donnée pour le calendrier.')),
+                        ),
                 ),
-                const SizedBox(height: 8),
-                if (heatmapData.isNotEmpty)
-                  HeatMapCalendar(
-                    datasets: heatmapData,
-                    colorsets: _colorMapping,
-                    colorMode: ColorMode.color,
-                    defaultColor: Colors.transparent,
-                    textColor: Colors.black,
-                    showColorTip: false,
-                    monthFontSize: 18,
-                  )
-                else
-                  const Center(child: Text('Aucune donnée pour le calendrier.')),
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
                 _buildLegend(),
-                const SizedBox(height: 24),
-                Center(
-                  child: Text('Statistiques Générales', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
-                ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 32),
+
+                _buildSectionHeader('Général'),
                 _buildStatsCard(data),
-                 const SizedBox(height: 24),
-                Center(
-                  child: Text('Fréquence des Humeurs', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
-                ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 32),
+
+                _buildSectionHeader('Fréquence des Humeurs'),
                 _buildMoodCard(data['moodFrequency'] as Map<String, int>),
+                const SizedBox(height: 40),
               ],
             ),
           );
@@ -167,55 +184,100 @@ class _StatsScreenState extends State<StatsScreen> {
     );
   }
 
+  Widget _buildSectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 12),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+          color: Theme.of(context).colorScheme.primary,
+        ),
+      ),
+    );
+  }
+
   Widget _buildStatsCard(Map<String, dynamic> data) {
+    final colorScheme = Theme.of(context).colorScheme;
     final avgCycleLength = data['avgCycleLength'] as double?;
     final avgPeriodLength = data['avgPeriodLength'] as double?;
     final totalCompletedCycles = data['totalCompletedCycles'] as int;
 
     if (totalCompletedCycles == 0) {
-      return const Card(child: ListTile(title: Text('Aucun cycle complet pour calculer les statistiques.')));
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: colorScheme.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: const Center(child: Text('Pas assez de données pour les moyennes.')),
+      );
     }
 
     final cycleLengthDisplay = avgCycleLength?.round() ?? 0;
     final periodLengthDisplay = avgPeriodLength?.round() ?? 0;
 
-    return Card(
+    return Container(
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(20),
+      ),
       child: Column(
         children: [
-          ListTile(
-            leading: const Icon(Icons.sync, color: Colors.blueAccent),
-            title: const Text('Durée moyenne du cycle'),
-            trailing: Text(
-              '$cycleLengthDisplay jour${cycleLengthDisplay != 1 ? 's' : ''}',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-          ),
-          ListTile(
-            leading: const Icon(Icons.water_drop_outlined, color: Colors.redAccent),
-            title: const Text('Durée moyenne des règles'),
-            trailing: Text(
-              '$periodLengthDisplay jour${periodLengthDisplay != 1 ? 's' : ''}',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-          ),
+          _buildStatRow(Icons.sync_rounded, 'Cycle moyen', '$cycleLengthDisplay jours', Colors.blue),
+          const Divider(height: 1, indent: 50),
+          _buildStatRow(Icons.water_drop_rounded, 'Règles moyennes', '$periodLengthDisplay jours', Colors.red),
+          const Divider(height: 1, indent: 50),
+          _buildStatRow(Icons.check_circle_outline_rounded, 'Cycles terminés', '$totalCompletedCycles', Colors.green),
         ],
       ),
     );
   }
 
-  Widget _buildMoodCard(Map<String, int> moodFrequency) {
-    if (moodFrequency.isEmpty) {
-      return const Card(child: ListTile(title: Text('Aucune humeur enregistrée.')));
+  Widget _buildStatRow(IconData icon, String label, String value, Color color) {
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+        child: Icon(icon, color: color, size: 20),
+      ),
+      title: Text(label, style: const TextStyle(fontSize: 14)),
+      trailing: Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+    );
+  }
+
+  Widget _buildMoodCard(Map<String, int> moodFreq) {
+    final colorScheme = Theme.of(context).colorScheme;
+    if (moodFreq.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: colorScheme.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: const Center(child: Text('Aucune humeur enregistrée.')),
+      );
     }
 
-    var sortedMoods = moodFrequency.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+    final sortedMoods = moodFreq.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
 
-    return Card(
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(20),
+      ),
       child: Column(
         children: sortedMoods.map((entry) {
           return ListTile(
             title: Text(entry.key),
-            trailing: Text('${entry.value} fois', style: const TextStyle(fontWeight: FontWeight.bold)),
+            trailing: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(color: colorScheme.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+              child: Text('${entry.value}', style: TextStyle(fontWeight: FontWeight.bold, color: colorScheme.primary)),
+            ),
           );
         }).toList(),
       ),
@@ -223,17 +285,16 @@ class _StatsScreenState extends State<StatsScreen> {
   }
 
   Widget _buildLegend() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Wrap(
-          spacing: 16.0,
-          runSpacing: 8.0,
-          children: _colorMapping.entries.map((entry) {
-            return _buildLegendItem(entry.value, _getLegendLabel(entry.key));
-          }).toList(),
-        ),
-      ),
+    return Wrap(
+      alignment: WrapAlignment.center,
+      spacing: 16,
+      runSpacing: 8,
+      children: [
+        _buildLegendItem(Colors.red, 'Règles'),
+        _buildLegendItem(Colors.yellow, 'Ovulation'),
+        _buildLegendItem(Colors.green, 'Fertilité'),
+        _buildLegendItem(Colors.blue, 'Symptômes'),
+      ],
     );
   }
 
@@ -241,20 +302,10 @@ class _StatsScreenState extends State<StatsScreen> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(width: 16, height: 16, color: color),
-        const SizedBox(width: 8),
-        Text(label),
+        Container(width: 12, height: 12, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+        const SizedBox(width: 6),
+        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
       ],
     );
-  }
-
-  String _getLegendLabel(int key) {
-    switch (key) {
-      case 1: return 'Règles';
-      case 2: return 'Ovulation';
-      case 3: return 'Fertilité';
-      case 4: return 'Symptômes';
-      default: return '';
-    }
   }
 }

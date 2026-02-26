@@ -30,17 +30,31 @@ class _PredictionDetailsScreenState extends State<PredictionDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Prédictions Intelligentes'),
-        backgroundColor: Colors.brown,
-        foregroundColor: Colors.white,
+        title: const Text('Algorithme', style: TextStyle(fontWeight: FontWeight.bold)),
         centerTitle: true,
-        toolbarHeight: 70,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            bottom: Radius.circular(6),
+        elevation: 0,
+        backgroundColor: colorScheme.surface,
+        foregroundColor: colorScheme.onSurface,
+        leading: IconButton(
+          icon: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withAlpha(13),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: colorScheme.primary),
           ),
+          onPressed: () => Navigator.of(context).pop(),
         ),
       ),
       body: FutureBuilder<Map<String, dynamic>>(
@@ -58,35 +72,44 @@ class _PredictionDetailsScreenState extends State<PredictionDetailsScreen> {
           final defaultCycleLength = settings.defaultCycleLength;
 
           return ListView(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(20.0),
             children: [
               Text(
-                'Comment fonctionnent nos prédictions ?',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: Colors.brown, fontWeight: FontWeight.bold),
+                'Intelligence Prédictive',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: colorScheme.primary,
+                ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 8),
+              Text(
+                'Découvrez comment CycleTrack calcule vos prochaines dates importantes.',
+                style: TextStyle(color: colorScheme.onSurfaceVariant),
+              ),
+              const SizedBox(height: 32),
               _buildExplanationCard(
-                context,
-                icon: Icons.all_inclusive,
+                icon: Icons.analytics_rounded,
+                iconColor: Colors.blue,
                 title: 'Votre Tendance Personnelle',
                 content: avgCycleLength != null
-                    ? 'Actuellement, vos prédictions sont basées sur une durée de cycle moyenne de ${avgCycleLength.round()} jours, calculée à partir de votre historique. Continuez à enregistrer vos cycles pour améliorer la précision !'
-                    : 'Encore aucun cycle terminé ! Vos prédictions sont pour l\'instant basées sur la durée par défaut de $defaultCycleLength jours. La précision augmentera dès votre premier cycle complet.',
+                    ? 'Actuellement, vos prédictions sont basées sur une durée de cycle moyenne de ${avgCycleLength.round()} jours, calculée à partir de votre historique personnel.'
+                    : 'Encore aucun cycle terminé ! Vos prédictions utilisent la durée par défaut de $defaultCycleLength jours en attendant vos premières données.',
               ),
               const SizedBox(height: 16),
               _buildExplanationCard(
-                context,
-                icon: Icons.warning_amber_rounded,
-                title: 'Gestion des Irrégularités',
-                content: 'Pour garantir des prédictions fiables, l\'algorithme identifie et met de côté les cycles dont la durée est inhabituelle (généralement moins de 21 jours ou plus de 35 jours). Cela empêche un cycle exceptionnel de fausser la moyenne.',
+                icon: Icons.filter_alt_rounded,
+                iconColor: Colors.orange,
+                title: 'Filtrage des Irrégularités',
+                content: 'L\'algorithme ignore automatiquement les cycles trop courts (<21j) ou trop longs (>35j) pour ne pas fausser la précision de vos moyennes habituelles.',
               ),
               const SizedBox(height: 16),
               _buildExplanationCard(
-                context,
-                icon: Icons.favorite_border,
-                title: 'Estimation de l\'ovulation',
-                content: 'L\'ovulation est estimée en se basant sur une phase lutéale de 14 jours (la période après l\'ovulation). Cette durée est soustraite de la durée totale estimée de votre cycle.',
+                icon: Icons.favorite_rounded,
+                iconColor: Colors.pink,
+                title: 'Estimation de l\'Ovulation',
+                content: 'L\'ovulation est calculée en soustrayant 14 jours (phase lutéale standard) de votre durée de cycle moyenne estimée.',
               ),
+              const SizedBox(height: 40),
             ],
           );
         },
@@ -94,31 +117,48 @@ class _PredictionDetailsScreenState extends State<PredictionDetailsScreen> {
     );
   }
 
-  Widget _buildExplanationCard(BuildContext context, {required IconData icon, required String title, required String content}) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, color: Colors.brown, size: 28),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-                  ),
+  Widget _buildExplanationCard({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String content,
+  }) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: colorScheme.outlineVariant.withAlpha(128)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: iconColor.withAlpha(26),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(content, style: Theme.of(context).textTheme.bodyLarge),
-          ],
-        ),
+                child: Icon(icon, color: iconColor, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            content,
+            style: TextStyle(color: colorScheme.onSurfaceVariant, height: 1.5, fontSize: 14),
+          ),
+        ],
       ),
     );
   }

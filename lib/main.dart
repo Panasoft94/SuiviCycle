@@ -2,7 +2,6 @@ import 'package:cycles/screens/user_account/login.dart';
 import 'package:flutter/material.dart';
 import 'screens/home/home_screen.dart';
 import 'database/database_helper.dart';
-import 'models/settings.dart';
 import 'services/notification_service.dart';
 
 void main() async {
@@ -60,12 +59,47 @@ class _MyAppState extends State<MyApp> {
       title: 'CycleTrack',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        primarySwatch: Colors.brown,
-        brightness: Brightness.light,
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFFE91E63), // Pink
+          primary: const Color(0xFFE91E63),
+          secondary: const Color(0xFFF48FB1),
+          surface: Colors.white,
+          brightness: Brightness.light,
+        ),
+        fontFamily: 'Roboto',
+        appBarTheme: const AppBarTheme(
+          centerTitle: true,
+          scrolledUnderElevation: 0,
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
+        ),
+        cardTheme: CardThemeData(
+          elevation: 0,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          color: const Color(0xFFF8F0F2),
+        ),
+        floatingActionButtonTheme: FloatingActionButtonThemeData(
+          backgroundColor: const Color(0xFFE91E63),
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        ),
       ),
       darkTheme: ThemeData(
-        primarySwatch: Colors.brown,
-        brightness: Brightness.dark,
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFFE91E63),
+          brightness: Brightness.dark,
+        ),
+        fontFamily: 'Roboto',
+        appBarTheme: const AppBarTheme(
+          centerTitle: true,
+          scrolledUnderElevation: 0,
+        ),
+        cardTheme: CardThemeData(
+          elevation: 0,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        ),
       ),
       themeMode: _themeMode,
       home: _initialScreen,

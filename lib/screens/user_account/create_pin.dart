@@ -59,66 +59,100 @@ class _CreatePinPageState extends State<CreatePinPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Créer un code PIN"),
-        backgroundColor: Colors.brown,
-        foregroundColor: Colors.white,
+        title: const Text("Sécurité", style: TextStyle(fontWeight: FontWeight.bold)),
         centerTitle: true,
-        toolbarHeight: 70,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(bottom: Radius.circular(6)),
-        ),
+        elevation: 0,
+        backgroundColor: colorScheme.surface,
+        foregroundColor: colorScheme.onSurface,
       ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(20.0),
+            padding: const EdgeInsets.symmetric(horizontal: 32.0),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: <Widget>[
-                const Text(
-                  "Sécurisez votre compte",
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: colorScheme.primary.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.lock_person_rounded, size: 64, color: colorScheme.primary),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 32),
                 const Text(
-                  "Veuillez créer un code PIN de 4 chiffres.",
-                  style: TextStyle(fontStyle: FontStyle.italic),
+                  "Configurez votre PIN",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  "Choisissez un code à 4 chiffres pour protéger vos données personnelles.",
+                  style: TextStyle(color: colorScheme.onSurfaceVariant),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 30),
+                const SizedBox(height: 40),
                 Pinput(
                   length: 4, 
                   obscureText: true,
                   autofocus: true,
                   controller: _pinController,
-                  mainAxisAlignment: MainAxisAlignment.center, 
+                  defaultPinTheme: PinTheme(
+                    width: 56,
+                    height: 60,
+                    textStyle: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                    decoration: BoxDecoration(
+                      color: colorScheme.surfaceContainerLow,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: colorScheme.outlineVariant),
+                    ),
+                  ),
+                  focusedPinTheme: PinTheme(
+                    width: 56,
+                    height: 60,
+                    textStyle: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                    decoration: BoxDecoration(
+                      color: colorScheme.surfaceContainerLow,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: colorScheme.primary, width: 2),
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 20),
-                SwitchListTile(
-                  title: const Text("Activer l\'accès par empreinte digitale"),
-                  value: _allowBiometricAccess,
-                  onChanged: (bool value) {
-                    setState(() {
-                      _allowBiometricAccess = value;
-                    });
-                  },
-                  secondary: const Icon(Icons.fingerprint),
-                  activeColor: Colors.brown,
+                const SizedBox(height: 40),
+                Container(
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainerLow,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: SwitchListTile(
+                    title: const Text("Accès biométrique"),
+                    subtitle: const Text("Utiliser l'empreinte ou le visage"),
+                    value: _allowBiometricAccess,
+                    onChanged: (bool value) {
+                      setState(() {
+                        _allowBiometricAccess = value;
+                      });
+                    },
+                    secondary: Icon(Icons.fingerprint_rounded, color: colorScheme.primary),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 48),
                 ElevatedButton(
                   onPressed: _saveUserAndNavigate,
                   style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.brown,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15)),
-                  child: const Text("Enregistrer", style: TextStyle(fontSize: 16)),
+                    backgroundColor: colorScheme.primary,
+                    foregroundColor: colorScheme.onPrimary,
+                    minimumSize: const Size(double.infinity, 56),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    elevation: 0,
+                  ),
+                  child: const Text("Continuer", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 ),
+                const SizedBox(height: 20),
               ],
             ),
           ),

@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:android_intent_plus/android_intent.dart';
 import 'package:flutter_local_notifications_platform_interface/flutter_local_notifications_platform_interface.dart';
@@ -20,6 +21,9 @@ class NotificationService {
   Future<void> init() async {
     try {
       tz.initializeTimeZones();
+      final dynamic locationName = await FlutterTimezone.getLocalTimezone();
+      final String timeZoneName = locationName is String ? locationName : (locationName as dynamic).name;
+      tz.setLocalLocation(tz.getLocation(timeZoneName));
 
       const androidSettings =
       AndroidInitializationSettings('@mipmap/launch_icon');
@@ -107,6 +111,11 @@ class NotificationService {
       scheduledDate.minute,
     );
 
+    if (scheduledTZDate.isBefore(tz.TZDateTime.now(tz.local))) {
+      if (kDebugMode) print('⚠️ Notification #$id ignorée car la date est passée: $scheduledTZDate');
+      return;
+    }
+
     const notificationDetails = NotificationDetails(
       android: AndroidNotificationDetails(
         'cycle_channel_id',
@@ -152,11 +161,6 @@ class NotificationService {
   Future<void> cancelAllNotifications() async {
     if (!_isReady) {
       if (kDebugMode) print('❌ Service non prêt. Annulation globale ignorée.');
-      return;
-    }
-
-    if (kReleaseMode) {
-      debugPrint('⚠️ cancelAllNotifications désactivé en release.');
       return;
     }
 

@@ -12,7 +12,7 @@ class DatabaseHelper {
 
   static Database? _database;
   static const _dbName = 'cycles.db';
-  static const _dbVersion = 9; // Incremented version for new user schema
+  static const _dbVersion = 10; // Incremented version for hydration table
 
   Future<Database> get database async {
     if (_database != null && _database!.isOpen) return _database!;
@@ -54,14 +54,7 @@ class DatabaseHelper {
   }
 
   Future _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < newVersion) {
-      // Drop all existing tables to recreate them
-      await db.execute('DROP TABLE IF EXISTS cycles');
-      await db.execute('DROP TABLE IF EXISTS symptoms');
-      await db.execute('DROP TABLE IF EXISTS notes');
-      await db.execute('DROP TABLE IF EXISTS settings');
-      await db.execute('DROP TABLE IF EXISTS users');
-
+    if (oldVersion < 1) { // Fresh install case or from onCreate
       await db.execute('''
       CREATE TABLE cycles(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -108,7 +101,6 @@ class DatabaseHelper {
       )
       ''');
       
-      // New, more detailed user table
       await db.execute('''
       CREATE TABLE users (
         user_id INTEGER PRIMARY KEY,
@@ -122,6 +114,17 @@ class DatabaseHelper {
         user_created_at TEXT DEFAULT CURRENT_TIMESTAMP,
         user_updated_at TEXT,
         access_empreinte INTEGER
+      )
+      ''');
+    }
+
+    if (oldVersion < 10) {
+      await db.execute('''
+      CREATE TABLE hydration (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT NOT NULL,
+        amount REAL NOT NULL,
+        goal_met INTEGER DEFAULT 0
       )
       ''');
     }
@@ -189,6 +192,31 @@ class DatabaseHelper {
   Future<int> insertSymptom(Symptom symptom) async {
     final db = await database;
     return await db.insert('symptoms', symptom.toMap());
+  }
+
+  // Hydration CRUD
+  Future<int> insertHydration(Map<String, dynamic> hydration) async {
+    final db = await database;
+    return await db.insert('hydration', hydration);
+  }
+
+  Future<List<Map<String, dynamic>>> getHydrationForDate(DateTime date) async {
+    final db = await database;
+    final dateStr = DateTime(date.year, date.month, date.day).toIso8601String().split('T')[0];
+    return await db.query('hydration', where: "date LIKE ?", whereArgs: ["$dateStr%"]);
+  }
+
+  Future<double> getTodayTotalHydration() async {
+    final now = DateTime.now();
+    final dateStr = DateTime(now.year, now.month, now.day).toIso8601String().split('T')[0];
+    final db = await database;
+    final result = await db.rawQuery('SELECT SUM(amount) as total FROM hydration WHERE date LIKE ?', ["$dateStr%"]);
+    return (result.first['total'] as num?)?.toDouble() ?? 0.0;
+  }
+
+  Future<List<Map<String, dynamic>>> getHydrationHistory(int limit) async {
+    final db = await database;
+    return await db.query('hydration', orderBy: 'date DESC', limit: limit);
   }
 
   Future<List<Symptom>> getSymptomsForCycle(int cycleId) async {

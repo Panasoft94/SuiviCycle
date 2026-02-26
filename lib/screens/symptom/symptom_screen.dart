@@ -49,17 +49,31 @@ class _SymptomScreenState extends State<SymptomScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Journal des Symptômes'),
-        backgroundColor: Colors.brown,
-        foregroundColor: Colors.white,
+        title: const Text('Journal des Symptômes', style: TextStyle(fontWeight: FontWeight.bold)),
         centerTitle: true,
-        toolbarHeight: 70,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            bottom: Radius.circular(6),
+        elevation: 0,
+        backgroundColor: colorScheme.surface,
+        foregroundColor: colorScheme.onSurface,
+        leading: IconButton(
+          icon: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withAlpha(13),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: colorScheme.primary),
           ),
+          onPressed: () => Navigator.of(context).pop(),
         ),
       ),
       body: FutureBuilder<List<Symptom>>(
@@ -69,8 +83,21 @@ class _SymptomScreenState extends State<SymptomScreen> {
             return const Center(child: CircularProgressIndicator());
           }
           if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(
-              child: Text('Aucun symptôme à afficher.\nAjoutez une entrée pour commencer.', textAlign: TextAlign.center),
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.assignment_rounded, size: 64, color: colorScheme.outline.withOpacity(0.5)),
+                  const SizedBox(height: 16),
+                  Text('Aucune entrée pour ce cycle', style: TextStyle(color: colorScheme.outline)),
+                  const SizedBox(height: 8),
+                  ElevatedButton.icon(
+                    onPressed: _navigateToAddSymptom,
+                    icon: const Icon(Icons.add_rounded),
+                    label: const Text('Ajouter une note'),
+                  )
+                ],
+              ),
             );
           }
 
@@ -84,7 +111,7 @@ class _SymptomScreenState extends State<SymptomScreen> {
               const Divider(height: 1),
               Expanded(
                 child: ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(8.0, 8.0, 8.0, 80.0),
+                  padding: const EdgeInsets.all(16.0),
                   itemCount: symptoms.length,
                   itemBuilder: (context, index) {
                     // Display newest first in the list
@@ -97,19 +124,18 @@ class _SymptomScreenState extends State<SymptomScreen> {
         },
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          final result = await Navigator.push(
-            context,
-            _slideTransition(AddSymptomScreen(cycleId: widget.cycleId)),
-          );
-          if (result == true) _loadSymptoms();
-        },
-        backgroundColor: Colors.brown,
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('Ajouter un journal', style: TextStyle(color: Colors.white)),
-        tooltip: 'Ajouter une entrée',
+        onPressed: _navigateToAddSymptom,
+        label: const Text('Nouvelle entrée'),
+        icon: const Icon(Icons.add_rounded),
       ),
     );
+  }
+
+  void _navigateToAddSymptom() async {
+    final result = await Navigator.push(context, _slideTransition(AddSymptomScreen(cycleId: widget.cycleId)));
+    if (result == true) {
+      _loadSymptoms();
+    }
   }
 
   Widget _buildChart(List<Symptom> symptoms) {
@@ -175,74 +201,124 @@ class _SymptomScreenState extends State<SymptomScreen> {
 
   Widget _buildFilterButtons() {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Wrap(
-        spacing: 8.0,
-        alignment: WrapAlignment.center,
-        children: [
-          FilterChip(label: const Text('Douleur'), selected: _selectedFilter == ChartFilter.pain, onSelected: (selected) {if (selected) setState(() => _selectedFilter = ChartFilter.pain);}, selectedColor: Colors.brown.withOpacity(0.3)),
-          FilterChip(label: const Text('Énergie'), selected: _selectedFilter == ChartFilter.energy, onSelected: (selected) {if (selected) setState(() => _selectedFilter = ChartFilter.energy);}, selectedColor: Colors.brown.withOpacity(0.3)),
-          FilterChip(label: const Text('Libido'), selected: _selectedFilter == ChartFilter.libido, onSelected: (selected) {if (selected) setState(() => _selectedFilter = ChartFilter.libido);}, selectedColor: Colors.brown.withOpacity(0.3)),
-        ], 
+      padding: const EdgeInsets.symmetric(vertical: 12.0),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _buildFilterChip(ChartFilter.pain, 'Douleur', Icons.warning_amber_rounded),
+            const SizedBox(width: 8),
+            _buildFilterChip(ChartFilter.energy, 'Énergie', Icons.bolt_rounded),
+            const SizedBox(width: 8),
+            _buildFilterChip(ChartFilter.libido, 'Libido', Icons.favorite_rounded),
+          ],
+        ),
       ),
+    );
+  }
+
+  Widget _buildFilterChip(ChartFilter filter, String label, IconData icon) {
+    final isSelected = _selectedFilter == filter;
+    final colorScheme = Theme.of(context).colorScheme;
+    return FilterChip(
+      selected: isSelected,
+      label: Text(label),
+      avatar: Icon(icon, size: 18, color: isSelected ? colorScheme.onPrimary : colorScheme.primary),
+      onSelected: (bool selected) {
+        if (selected) setState(() => _selectedFilter = filter);
+      },
+      selectedColor: colorScheme.primary,
+      labelStyle: TextStyle(color: isSelected ? colorScheme.onPrimary : colorScheme.onSurface),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
     );
   }
 
   Widget _buildSymptomCard(Symptom symptom) {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
-      elevation: 3,
+    final colorScheme = Theme.of(context).colorScheme;
+    final formattedDate = DateFormat('EEEE d MMMM', 'fr_FR').format(symptom.date);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: colorScheme.outlineVariant.withOpacity(0.5)),
+      ),
       child: ListTile(
-        contentPadding: const EdgeInsets.all(16.0),
-        title: Text(DateFormat('EEEE, d MMMM yyyy', 'fr_FR').format(symptom.date), style: const TextStyle(fontWeight: FontWeight.bold)),
+        contentPadding: const EdgeInsets.all(16),
+        title: Text(formattedDate, style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 8),
-            if (symptom.mood != null) Text('Humeur: ${symptom.mood}'),
-            if (symptom.painLevel != null) Text('Douleur: ${symptom.painLevel}/5'),
-            if (symptom.energyLevel != null) Text('Énergie: ${symptom.energyLevel}/5'),
-            if (symptom.notes?.isNotEmpty ?? false) ...[const SizedBox(height: 4), Text('Notes: ${symptom.notes}', maxLines: 2, overflow: TextOverflow.ellipsis)],
+            Row(
+              children: [
+                _buildSmallIndicator(Icons.warning_amber_rounded, 'D:${symptom.painLevel}', Colors.red),
+                const SizedBox(width: 8),
+                _buildSmallIndicator(Icons.bolt_rounded, 'E:${symptom.energyLevel}', Colors.orange),
+                const SizedBox(width: 8),
+                _buildSmallIndicator(Icons.favorite_rounded, 'L:${symptom.libidoLevel}', Colors.pink),
+              ],
+            ),
+            if (symptom.notes != null && symptom.notes!.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                symptom.notes!,
+                style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 13, fontStyle: FontStyle.italic),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
           ],
         ),
-        trailing: PopupMenuButton<int>(
-          onSelected: (item) => _onCardMenuSelection(item, symptom),
-          itemBuilder: (context) => [const PopupMenuItem<int>(value: 0, child: Text('Modifier')), const PopupMenuItem<int>(value: 1, child: Text('Supprimer'))],
+        trailing: IconButton(
+          icon: const Icon(Icons.delete_outline_rounded, color: Colors.grey),
+          onPressed: () => _confirmDelete(symptom),
         ),
+        onTap: () {
+          // Edit symptom?
+        },
       ),
     );
   }
 
-  void _onCardMenuSelection(int item, Symptom symptom) async {
-    if (item == 0) {
-      final result = await Navigator.push(context, _slideTransition(AddSymptomScreen(cycleId: widget.cycleId, symptomToEdit: symptom)));
-      if (result == true) _loadSymptoms();
-    } else if (item == 1) {
-      _showDeleteConfirmation(symptom);
-    }
+  Widget _buildSmallIndicator(IconData icon, String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 4),
+          Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: color)),
+        ],
+      ),
+    );
   }
 
-  void _showDeleteConfirmation(Symptom symptom) {
+  void _confirmDelete(Symptom symptom) {
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Confirmer la suppression'),
-          content: const Text('Voulez-vous vraiment supprimer cette entrée ?'),
-          actions: <Widget>[
-            TextButton(child: const Text('Annuler'), onPressed: () => Navigator.of(context).pop()),
-            TextButton(
-              child: const Text('Supprimer', style: TextStyle(color: Colors.red)),
-              onPressed: () async {
-                await _dbHelper.deleteSymptom(symptom.id!);
-                if (mounted) Navigator.of(context).pop();
-                _loadSymptoms();
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Entrée supprimée.')));
-              },
-            ),
-          ],
-        );
-      },
+      builder: (context) => AlertDialog(
+        title: const Text('Supprimer ?'),
+        content: const Text('Voulez-vous supprimer cette entrée du journal ?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annuler')),
+          TextButton(
+            onPressed: () async {
+              await _dbHelper.deleteSymptom(symptom.id!);
+              Navigator.pop(context);
+              _loadSymptoms();
+            },
+            child: const Text('Supprimer', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
     );
   }
 }

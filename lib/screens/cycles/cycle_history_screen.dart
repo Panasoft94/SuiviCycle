@@ -43,17 +43,31 @@ class _CycleHistoryScreenState extends State<CycleHistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Historique des Cycles'),
-        backgroundColor: Colors.brown,
-        foregroundColor: Colors.white,
+        title: const Text('Historique', style: TextStyle(fontWeight: FontWeight.bold)),
         centerTitle: true,
-        toolbarHeight: 70,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            bottom: Radius.circular(6),
+        elevation: 0,
+        backgroundColor: colorScheme.surface,
+        foregroundColor: colorScheme.onSurface,
+        leading: IconButton(
+          icon: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withAlpha(13),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: colorScheme.primary),
           ),
+          onPressed: () => Navigator.of(context).pop(),
         ),
       ),
       body: FutureBuilder<List<Cycle>>(
@@ -63,12 +77,21 @@ class _CycleHistoryScreenState extends State<CycleHistoryScreen> {
             return const Center(child: CircularProgressIndicator());
           }
           if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('Aucun cycle enregistré.'));
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.history_rounded, size: 64, color: colorScheme.outline.withOpacity(0.5)),
+                  const SizedBox(height: 16),
+                  Text('Aucun cycle enregistré', style: TextStyle(color: colorScheme.outline)),
+                ],
+              ),
+            );
           }
 
           final cycles = snapshot.data!;
           return ListView.builder(
-            padding: const EdgeInsets.fromLTRB(8.0, 8.0, 8.0, 80.0), // Add padding for FAB
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             itemCount: cycles.length,
             itemBuilder: (context, index) {
               return _buildCycleCard(cycles[index]);
@@ -80,98 +103,74 @@ class _CycleHistoryScreenState extends State<CycleHistoryScreen> {
         onPressed: () {
           Navigator.push(context, _slideTransition(const StatsScreen()));
         },
-        label: const Text('Voir les Stats'),
-        icon: const Icon(Icons.bar_chart),
-        backgroundColor: Colors.brown,
-        foregroundColor: Colors.white,
+        label: const Text('Statistiques'),
+        icon: const Icon(Icons.bar_chart_rounded),
       ),
     );
   }
 
   Widget _buildCycleCard(Cycle cycle) {
+    final colorScheme = Theme.of(context).colorScheme;
     final isOngoing = cycle.endDate == null;
     final startDate = DateFormat('d MMM yyyy', 'fr_FR').format(cycle.startDate);
     
     String endDateText;
     if (isOngoing) {
       endDateText = cycle.expectedPeriod != null 
-          ? '~ ${DateFormat('d MMM yyyy', 'fr_FR').format(cycle.expectedPeriod!)}'
+          ? 'Prévu: ${DateFormat('d MMM yyyy', 'fr_FR').format(cycle.expectedPeriod!)}'
           : 'En cours';
     } else {
       endDateText = DateFormat('d MMM yyyy', 'fr_FR').format(cycle.endDate!);
     }
 
-    final cycleLength = cycle.cycleLength ?? 0;
-    final cycleLengthText = cycle.cycleLength != null ? '$cycleLength jours' : 'N/A';
-
-    int? periodLength;
-    if (cycle.periodEndDate != null) {
-      periodLength = cycle.periodEndDate!.difference(cycle.startDate).inDays + 1;
-    }
-    
-    bool isIrregular = !isOngoing && (cycleLength < 21 || cycleLength > 35);
-
-    return GestureDetector(
-      onLongPress: () => _showDeleteConfirmation(cycle),
-      child: Card(
-        margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
-        elevation: 3,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        child: ExpansionTile(
-          leading: Icon(
-            isIrregular ? Icons.warning_amber_rounded : (isOngoing ? Icons.sync : Icons.check_circle_outline),
-            color: isIrregular ? Colors.orangeAccent : (isOngoing ? Colors.blueAccent : Colors.green),
-          ),
-          title: Text(
-            '$startDate - $endDateText',
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-          ),
-          subtitle: Text('Durée : $cycleLengthText'),
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-              child: Column(
-                children: [
-                  const Divider(),
-                  if(isIrregular)
-                    _buildDetailRow(Icons.info_outline, 'Cycle irrégulier', 'La durée est en dehors de la plage typique (21-35 jours).'),
-                  if (periodLength != null)
-                    _buildDetailRow(Icons.water_drop_outlined, 'Durée des règles', '$periodLength jours'),
-                  if (cycle.ovulationDate != null)
-                    _buildDetailRow(
-                      Icons.favorite_border,
-                      'Date d\'ovulation',
-                      DateFormat('d MMMM yyyy', 'fr_FR').format(cycle.ovulationDate!),
-                    ),
-                  if (cycle.ovulationDate == null && cycle.cycleLength != null && cycle.cycleLength! <= 15)
-                     _buildDetailRow(Icons.help_outline, 'Ovulation', 'Non estimée (cycle trop court).'),
-                ],
-              ),
-            )
-          ],
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: isOngoing ? colorScheme.primaryContainer.withOpacity(0.3) : colorScheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isOngoing ? colorScheme.primary.withOpacity(0.5) : colorScheme.outlineVariant.withOpacity(0.5),
+          width: isOngoing ? 2 : 1,
         ),
       ),
-    );
-  }
-
-  Widget _buildDetailRow(IconData icon, String title, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 20, color: Colors.grey[600]),
-          const SizedBox(width: 12),
-          Text('$title:', style: const TextStyle(fontWeight: FontWeight.w500)),
-          const Spacer(),
-          Expanded(
-            child: Text(
-              value,
-              textAlign: TextAlign.right,
-              style: TextStyle(color: Colors.grey[800]),
-            ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        leading: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: isOngoing ? colorScheme.primary : colorScheme.surfaceContainerHighest,
+            shape: BoxShape.circle,
           ),
-        ],
+          child: Icon(
+            isOngoing ? Icons.play_arrow_rounded : Icons.calendar_today_rounded,
+            color: isOngoing ? colorScheme.onPrimary : colorScheme.onSurfaceVariant,
+          ),
+        ),
+        title: Text(
+          isOngoing ? 'Cycle Actuel' : 'Cycle terminé',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: isOngoing ? colorScheme.primary : colorScheme.onSurface,
+          ),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 4),
+            Text('$startDate - $endDateText'),
+            if (cycle.cycleLength != null) ...[
+              const SizedBox(height: 2),
+              Text('Durée: ${cycle.cycleLength} jours', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+            ]
+          ],
+        ),
+        trailing: isOngoing
+            ? Icon(Icons.hourglass_bottom_rounded, color: colorScheme.primary)
+            : const Icon(Icons.chevron_right_rounded),
+        onTap: () {
+          // Action lors du clic sur un cycle (ex: voir détails)
+        },
+        onLongPress: () => _showDeleteConfirmation(cycle),
       ),
     );
   }

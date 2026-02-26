@@ -21,8 +21,6 @@ class _AddSymptomScreenState extends State<AddSymptomScreen> {
   double _energyLevel = 3;
   double _libidoLevel = 3;
 
-  final List<String> _moods = ['Heureuse', 'Triste', 'En colère', 'Anxieuse', 'Calme', 'Énergique'];
-
   @override
   void initState() {
     super.initState();
@@ -44,69 +42,161 @@ class _AddSymptomScreenState extends State<AddSymptomScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.symptomToEdit == null ? 'Nouveau Journal' : 'Modifier le Journal'),
-        backgroundColor: Colors.brown,
-        foregroundColor: Colors.white,
+        title: Text(widget.symptomToEdit == null ? 'Nouveau Journal' : 'Modifier le Journal', style: const TextStyle(fontWeight: FontWeight.bold)),
+        elevation: 0,
+        backgroundColor: colorScheme.surface,
+        foregroundColor: colorScheme.onSurface,
         centerTitle: true,
-        toolbarHeight: 70,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            bottom: Radius.circular(6),
+        leading: IconButton(
+          icon: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withAlpha(13),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: colorScheme.primary),
           ),
+          onPressed: () => Navigator.of(context).pop(),
         ),
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 80.0),
+        padding: const EdgeInsets.all(20.0),
         children: [
-          Card(elevation: 2, child: Padding(padding: const EdgeInsets.all(16.0), child: _buildMoodSelector())),
-          const SizedBox(height: 12),
-          Card(elevation: 2, child: Padding(padding: const EdgeInsets.all(16.0), child: _buildLevelSlider(label: 'Niveau de douleur', value: _painLevel, onChanged: (value) => setState(() => _painLevel = value)))),
-          const SizedBox(height: 12),
-          Card(elevation: 2, child: Padding(padding: const EdgeInsets.all(16.0), child: _buildLevelSlider(label: "Niveau d'énergie", value: _energyLevel, onChanged: (value) => setState(() => _energyLevel = value)))),
-          const SizedBox(height: 12),
-          Card(elevation: 2, child: Padding(padding: const EdgeInsets.all(16.0), child: _buildLevelSlider(label: 'Niveau de libido', value: _libidoLevel, onChanged: (value) => setState(() => _libidoLevel = value)))),
-          const SizedBox(height: 12),
-          Card(
-            elevation: 2,
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: TextField(
-                controller: _notesController,
-                decoration: const InputDecoration(labelText: 'Notes supplémentaires', border: OutlineInputBorder()),
-                maxLines: 3,
-              ),
-            ),
+          _buildSectionHeader('Humeur'),
+          _buildMoodGrid(),
+          const SizedBox(height: 24),
+
+          _buildSectionHeader('Indicateurs'),
+          _buildSliderCard(
+            label: 'Niveau de douleur',
+            value: _painLevel,
+            icon: Icons.warning_amber_rounded,
+            color: Colors.red,
+            onChanged: (value) => setState(() => _painLevel = value),
           ),
+          const SizedBox(height: 12),
+          _buildSliderCard(
+            label: "Niveau d'énergie",
+            value: _energyLevel,
+            icon: Icons.bolt_rounded,
+            color: Colors.orange,
+            onChanged: (value) => setState(() => _energyLevel = value),
+          ),
+          const SizedBox(height: 12),
+          _buildSliderCard(
+            label: 'Niveau de libido',
+            value: _libidoLevel,
+            icon: Icons.favorite_rounded,
+            color: Colors.pink,
+            onChanged: (value) => setState(() => _libidoLevel = value),
+          ),
+          const SizedBox(height: 24),
+
+          _buildSectionHeader('Notes'),
+          TextField(
+            controller: _notesController,
+            decoration: InputDecoration(
+              hintText: 'Comment vous sentez-vous aujourd\'hui ?',
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+              filled: true,
+              fillColor: colorScheme.surfaceContainerLow,
+            ),
+            maxLines: 4,
+          ),
+          const SizedBox(height: 100),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _saveSymptom,
-        backgroundColor: Colors.brown,
-        icon: const Icon(Icons.save, color: Colors.white),
-        label: const Text('Enregistrer', style: TextStyle(color: Colors.white)),
+        label: const Text('Enregistrer'),
+        icon: const Icon(Icons.check_rounded),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
   }
 
-  Widget _buildMoodSelector() {
-    return DropdownButtonFormField<String>(
-      decoration: const InputDecoration(labelText: 'Humeur du jour', border: InputBorder.none, contentPadding: EdgeInsets.zero),
-      value: _selectedMood,
-      items: _moods.map((mood) => DropdownMenuItem<String>(value: mood, child: Text(mood))).toList(),
-      onChanged: (newValue) => setState(() => _selectedMood = newValue),
+  Widget _buildSectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 12),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+          color: Theme.of(context).colorScheme.primary,
+        ),
+      ),
     );
   }
 
-  Widget _buildLevelSlider({required String label, required double value, required ValueChanged<double> onChanged}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('$label: ${value.toInt()}', style: Theme.of(context).textTheme.titleMedium),
-        Slider(value: value, min: 0, max: 5, divisions: 5, label: value.round().toString(), onChanged: onChanged),
-      ],
+  Widget _buildMoodGrid() {
+    final List<String> moods = ['Heureuse', 'Triste', 'En colère', 'Anxieuse', 'Calme', 'Énergique'];
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: moods.map((mood) {
+        final isSelected = _selectedMood == mood;
+        final colorScheme = Theme.of(context).colorScheme;
+        return ChoiceChip(
+          label: Text(mood),
+          selected: isSelected,
+          onSelected: (selected) {
+            setState(() => _selectedMood = selected ? mood : null);
+          },
+          selectedColor: colorScheme.primaryContainer,
+          labelStyle: TextStyle(color: isSelected ? colorScheme.onPrimaryContainer : colorScheme.onSurface),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildSliderCard({
+    required String label,
+    required double value,
+    required IconData icon,
+    required Color color,
+    required ValueChanged<double> onChanged,
+  }) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: color, size: 20),
+              const SizedBox(width: 8),
+              Text(label, style: const TextStyle(fontWeight: FontWeight.w500)),
+              const Spacer(),
+              Text('${value.toInt()}/5', style: TextStyle(fontWeight: FontWeight.bold, color: color)),
+            ],
+          ),
+          Slider(
+            value: value,
+            min: 0,
+            max: 5,
+            divisions: 5,
+            activeColor: color,
+            inactiveColor: color.withAlpha(51),
+            onChanged: onChanged,
+          ),
+        ],
+      ),
     );
   }
 

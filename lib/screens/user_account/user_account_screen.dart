@@ -79,17 +79,31 @@ class _UserAccountScreenState extends State<UserAccountScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
-        title: const Row(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.account_circle), SizedBox(width: 8), Text('Mon Compte')]),
+        title: const Text('Mon Compte', style: TextStyle(fontWeight: FontWeight.bold)),
         centerTitle: true,
-        backgroundColor: Colors.brown,
-        foregroundColor: Colors.white,
-        toolbarHeight: 70,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            bottom: Radius.circular(6),
+        elevation: 0,
+        backgroundColor: colorScheme.surface,
+        foregroundColor: colorScheme.onSurface,
+        leading: IconButton(
+          icon: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withAlpha(13),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: colorScheme.primary),
           ),
+          onPressed: () => Navigator.of(context).pop(),
         ),
       ),
       body: FutureBuilder<Map<String, dynamic>?>(
@@ -99,60 +113,135 @@ class _UserAccountScreenState extends State<UserAccountScreen> {
             return const Center(child: CircularProgressIndicator());
           }
           if (!snapshot.hasData || snapshot.data == null) {
-            return const Center(child: Text("Aucun utilisateur trouvé."));
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.person_off_rounded, size: 64, color: colorScheme.outline.withOpacity(0.5)),
+                  const SizedBox(height: 16),
+                  const Text("Aucun utilisateur trouvé."),
+                ],
+              ),
+            );
           }
           final user = User.fromMap(snapshot.data!);
-          return Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                _buildProfileCard(user),
-                const SizedBox(height: 30),
-                _buildActionButton(icon: Icons.edit, title: 'Modifier le profil', onTap: () => _showEditProfileSheet(user)),
-                const SizedBox(height: 15),
-                _buildActionButton(icon: Icons.lock, title: 'Changer le code PIN', onTap: () {
+          return ListView(
+            padding: const EdgeInsets.all(20.0),
+            children: [
+              _buildProfileCard(user),
+              const SizedBox(height: 32),
+              _buildSectionHeader('Paramètres de sécurité'),
+              _buildActionButton(
+                icon: Icons.edit_rounded,
+                title: 'Modifier le profil',
+                onTap: () => _showEditProfileSheet(user),
+                color: colorScheme.primary, // Changed from Colors.blue to theme primary
+              ),
+              const SizedBox(height: 12),
+              _buildActionButton(
+                icon: Icons.lock_rounded,
+                title: 'Changer le code PIN',
+                onTap: () {
                    Navigator.of(context).push(_slideTransition(const ChangePinScreen()));
-                }),
-              ],
-            ),
+                },
+                color: Colors.orange,
+              ),
+            ],
           );
         },
       ),
     );
   }
 
-  Widget _buildProfileCard(User user) {
-    return Card(
-      elevation: 5,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          children: [
-            CircleAvatar(radius: 50, backgroundColor: Colors.brown.shade100, child: Text(user.name.isNotEmpty ? user.name[0].toUpperCase() : '', style: const TextStyle(fontSize: 40, color: Colors.brown))),
-            const SizedBox(height: 15),
-            Text(user.name, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 20),
-            _buildInfoRow(Icons.email_outlined, user.email),
-            const SizedBox(height: 10),
-            _buildInfoRow(Icons.phone_outlined, user.phone),
-          ],
+  Widget _buildSectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 12),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.bold,
+          color: Theme.of(context).colorScheme.primary,
+          letterSpacing: 1.2,
         ),
       ),
     );
   }
+
+  Widget _buildProfileCard(User user) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [colorScheme.primary, colorScheme.secondary],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: [
+          BoxShadow(
+            color: colorScheme.primary.withOpacity(0.3),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          CircleAvatar(
+            radius: 45,
+            backgroundColor: Colors.white24,
+            child: Text(
+              user.name.isNotEmpty ? user.name[0].toUpperCase() : '?',
+              style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            user.name,
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
+          ),
+          const SizedBox(height: 24),
+          const Divider(color: Colors.white24),
+          const SizedBox(height: 16),
+          _buildProfileInfoRow(Icons.email_rounded, user.email),
+          const SizedBox(height: 12),
+          _buildProfileInfoRow(Icons.phone_rounded, user.phone),
+        ],
+      ),
+    );
+  }
   
-  Widget _buildInfoRow(IconData icon, String text) {
-    return Row(children: [Icon(icon, color: Colors.grey[600]), const SizedBox(width: 15), Text(text, style: const TextStyle(fontSize: 16))]);
+  Widget _buildProfileInfoRow(IconData icon, String text) {
+    return Row(
+      children: [
+        Icon(icon, color: Colors.white70, size: 18),
+        const SizedBox(width: 12),
+        Text(text, style: const TextStyle(color: Colors.white, fontSize: 15)),
+      ],
+    );
   }
 
-  Widget _buildActionButton({required IconData icon, required String title, required VoidCallback onTap}) {
-    return ListTile(
-      onTap: onTap,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.grey.shade300)),
-      leading: Icon(icon, color: Colors.brown),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w500)),
-      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+  Widget _buildActionButton({required IconData icon, required String title, required VoidCallback onTap, required Color color}) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Container(
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: colorScheme.outlineVariant.withOpacity(0.5)),
+      ),
+      child: ListTile(
+        onTap: onTap,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+          child: Icon(icon, color: color, size: 20),
+        ),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w500)),
+        trailing: const Icon(Icons.chevron_right_rounded),
+      ),
     );
   }
 }
@@ -192,43 +281,62 @@ class _EditProfileFormState extends State<_EditProfileForm> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Padding(
-      padding: EdgeInsets.only(top: 20, left: 20, right: 20, bottom: MediaQuery.of(context).viewInsets.bottom + 20),
+      padding: EdgeInsets.only(top: 24, left: 24, right: 24, bottom: MediaQuery.of(context).viewInsets.bottom + 24),
       child: Form(
         key: _formKey,
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('Modifier le profil', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 20),
-            TextFormField(
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: colorScheme.outlineVariant,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Modifier le profil',
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: colorScheme.primary),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
+            _buildTextField(
               controller: _nameController,
-              decoration: InputDecoration(labelText: 'Nom complet', prefixIcon: const Icon(Icons.person), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
+              label: 'Nom complet',
+              icon: Icons.person_outline_rounded,
               validator: (value) => (value == null || value.isEmpty) ? 'Veuillez entrer un nom.' : null,
             ),
-            const SizedBox(height: 15),
-            TextFormField(
+            const SizedBox(height: 20),
+            _buildTextField(
               controller: _emailController,
-              decoration: InputDecoration(labelText: 'Adresse e-mail', prefixIcon: const Icon(Icons.email), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
+              label: 'Adresse e-mail',
+              icon: Icons.email_outlined,
+              keyboardType: TextInputType.emailAddress,
               validator: (value) {
                 if (value == null || value.isEmpty) return 'Veuillez entrer un e-mail.';
-                if (!RegExp(r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+").hasMatch(value)) {
+                if (!RegExp(r"^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$").hasMatch(value)) {
                   return 'Veuillez entrer un e-mail valide.';
                 }
                 return null;
               },
             ),
-            const SizedBox(height: 15),
-            TextFormField(
+            const SizedBox(height: 20),
+            _buildTextField(
               controller: _phoneController,
+              label: 'Téléphone',
+              icon: Icons.phone_outlined,
               keyboardType: TextInputType.phone,
-              decoration: InputDecoration(labelText: 'Téléphone', prefixIcon: const Icon(Icons.phone), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
               validator: (value) => (value == null || value.isEmpty) ? 'Veuillez entrer un numéro.' : null,
             ),
-            const SizedBox(height: 20),
-            ElevatedButton.icon(
-              icon: const Icon(Icons.save),
-              label: const Text('Enregistrer les modifications'),
+            const SizedBox(height: 40),
+            ElevatedButton(
               onPressed: () {
                 if (_formKey.currentState!.validate()) {
                   widget.user.name = _nameController.text;
@@ -238,11 +346,51 @@ class _EditProfileFormState extends State<_EditProfileForm> {
                   Navigator.of(context).pop();
                 }
               },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.brown, foregroundColor: Colors.white, minimumSize: const Size(double.infinity, 50), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: colorScheme.primary,
+                foregroundColor: Colors.white,
+                minimumSize: const Size(double.infinity, 56),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                elevation: 0,
+              ),
+              child: const Text('Enregistrer les modifications', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    TextInputType? keyboardType,
+    String? Function(String?)? validator,
+  }) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, color: colorScheme.primary),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: colorScheme.outlineVariant),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: colorScheme.outlineVariant),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: colorScheme.primary, width: 2),
+        ),
+        filled: true,
+        fillColor: colorScheme.surface,
+      ),
+      validator: validator,
     );
   }
 }

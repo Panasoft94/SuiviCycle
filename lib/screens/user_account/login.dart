@@ -80,87 +80,92 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(
-        title: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.lock_outline),
-            SizedBox(width: 8),
-            Text('CycleTrack verrouillé'),
-          ],
-        ),
-        foregroundColor: Colors.white,
-        elevation: 6,
-        toolbarHeight: 65,
-        backgroundColor: Colors.brown,
-        centerTitle: true,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(bottom: Radius.circular(6)),
-        ),
-      ),
       body: SafeArea(
         child: Center(
           child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const SizedBox(height: 24),
-              const Text("Déverrouillage par code PIN",
-                  style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 22,
-                      color: Colors.black)),
-              const SizedBox(height: 10),
-              const Text("Veuillez entrer votre code pin de 4 chiffres !",
-                  style: TextStyle(fontStyle: FontStyle.italic),
-                  textAlign: TextAlign.center),
-              const SizedBox(height: 10),
+              const SizedBox(height: 60),
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: colorScheme.primary.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.lock_rounded, size: 48, color: colorScheme.primary),
+              ),
+              const SizedBox(height: 32),
+              const Text(
+                "Bon retour !",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 28),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                "Entrez votre PIN pour déverrouiller",
+                style: TextStyle(color: colorScheme.onSurfaceVariant),
+              ),
+              const SizedBox(height: 48),
               Pinput(
                 focusNode: _pinFocusNode,
                 controller: controller,
                 length: 4,
                 onCompleted: _onCompleted,
                 obscureText: true,
+                defaultPinTheme: PinTheme(
+                  width: 56,
+                  height: 60,
+                  textStyle: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainerLow,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: colorScheme.outlineVariant),
+                  ),
+                ),
+                focusedPinTheme: PinTheme(
+                  width: 56,
+                  height: 60,
+                  textStyle: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainerLow,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: colorScheme.primary, width: 2),
+                  ),
+                ),
               ),
-              const SizedBox(height: 12),
               const Spacer(),
               if (biometricAvailable &&
                   _user != null &&
                   _user!['access_empreinte'] == 1)
-                Column(
-                  children: <Widget>[
-                    const Text("OU",
-                        style: TextStyle(
-                            fontSize: 23,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black)),
-                    const SizedBox(height: 38),
-                    InkWell(
-                      onTap: _biometricAuthentication,
-                      borderRadius: BorderRadius.circular(30),
-                      child: Container(
-                        width: 75,
-                        height: 75,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.brown,
-                          border: Border.all(color: Colors.brown),
-                        ),
-                        child: isLoading
-                            ? const CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.white),
-                        )
-                            : const Icon(Icons.fingerprint,
-                            size: 65, color: Colors.white),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 60),
+                  child: InkWell(
+                    onTap: _biometricAuthentication,
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                      decoration: BoxDecoration(
+                        color: colorScheme.primaryContainer.withOpacity(0.4),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.fingerprint_rounded, size: 28, color: colorScheme.primary),
+                          const SizedBox(width: 12),
+                          Text(
+                            "Identification biométrique",
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: colorScheme.primary,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    const Text("Empreinte biométrique"),
-                  ],
+                  ),
                 ),
-              const SizedBox(height: 30),
             ],
           ),
         ),
