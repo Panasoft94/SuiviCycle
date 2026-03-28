@@ -6,7 +6,6 @@ import 'package:timezone/timezone.dart' as tz;
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:android_intent_plus/android_intent.dart';
-import 'package:flutter_local_notifications_platform_interface/flutter_local_notifications_platform_interface.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -21,14 +20,18 @@ class NotificationService {
   Future<void> init() async {
     try {
       tz.initializeTimeZones();
-      final dynamic locationName = await FlutterTimezone.getLocalTimezone();
-      final String timeZoneName = locationName is String ? locationName : (locationName as dynamic).name;
-      tz.setLocalLocation(tz.getLocation(timeZoneName));
+      final locationName = (await FlutterTimezone.getLocalTimezone()).identifier;
+      tz.setLocalLocation(tz.getLocation(locationName));
 
       const androidSettings =
-      AndroidInitializationSettings('@mipmap/launch_icon');
+      AndroidInitializationSettings('@mipmap/ic_launcher');
+      const iosSettings = DarwinInitializationSettings(
+        requestAlertPermission: true,
+        requestBadgePermission: true,
+        requestSoundPermission: true,
+      );
       const initializationSettings =
-      InitializationSettings(android: androidSettings);
+      InitializationSettings(android: androidSettings, iOS: iosSettings);
 
       await flutterLocalNotificationsPlugin.initialize(
         initializationSettings,
@@ -102,18 +105,34 @@ class NotificationService {
       return;
     }
 
-    final scheduledTZDate = tz.TZDateTime(
+    // Schedule at 9:00 AM on the target date for a better user experience
+    var scheduledTZDate = tz.TZDateTime(
       tz.local,
       scheduledDate.year,
       scheduledDate.month,
       scheduledDate.day,
-      scheduledDate.hour,
-      scheduledDate.minute,
+      9,
+      0,
     );
 
-    if (scheduledTZDate.isBefore(tz.TZDateTime.now(tz.local))) {
-      if (kDebugMode) print('⚠️ Notification #$id ignorée car la date est passée: $scheduledTZDate');
-      return;
+    final now = tz.TZDateTime.now(tz.local);
+
+    // If the scheduled date is in the past and repeat is requested,
+    // schedule for the same time tomorrow so notifications still fire
+    if (scheduledTZDate.isBefore(now)) {
+      if (repeatDaily) {
+        scheduledTZDate = tz.TZDateTime(
+          tz.local,
+          now.year,
+          now.month,
+          now.day + 1,
+          9,
+          0,
+        );
+      } else {
+        if (kDebugMode) print('⚠️ Notification #$id ignorée car la date est passée: $scheduledTZDate');
+        return;
+      }
     }
 
     const notificationDetails = NotificationDetails(
@@ -123,6 +142,7 @@ class NotificationService {
         channelDescription: 'Notifications liées au suivi de cycle.',
         importance: Importance.max,
         priority: Priority.high,
+        icon: '@mipmap/ic_launcher',
       ),
     );
 

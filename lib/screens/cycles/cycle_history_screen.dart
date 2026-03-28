@@ -3,7 +3,8 @@ import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import '../../database/database_helper.dart';
 import '../../models/cycle.dart';
-import '../stats/stats_screen.dart'; // Import the stats screen
+import '../../utils/widgets.dart';
+import '../stats/stats_screen.dart';
 
 class CycleHistoryScreen extends StatefulWidget {
   const CycleHistoryScreen({super.key});
@@ -29,18 +30,6 @@ class _CycleHistoryScreenState extends State<CycleHistoryScreen> {
     });
   }
 
-  PageRouteBuilder _slideTransition(Widget page) {
-    return PageRouteBuilder(
-      pageBuilder: (_, __, ___) => page,
-      transitionsBuilder: (_, animation, __, child) {
-        return SlideTransition(
-          position: Tween(begin: const Offset(1, 0), end: Offset.zero).animate(animation),
-          child: child,
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -51,24 +40,7 @@ class _CycleHistoryScreenState extends State<CycleHistoryScreen> {
         elevation: 0,
         backgroundColor: colorScheme.surface,
         foregroundColor: colorScheme.onSurface,
-        leading: IconButton(
-          icon: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withAlpha(13),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: colorScheme.primary),
-          ),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
+        leading: const AppBackButton(),
       ),
       body: FutureBuilder<List<Cycle>>(
         future: _cyclesFuture,
@@ -81,7 +53,7 @@ class _CycleHistoryScreenState extends State<CycleHistoryScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.history_rounded, size: 64, color: colorScheme.outline.withOpacity(0.5)),
+                  Icon(Icons.history_rounded, size: 64, color: colorScheme.outline.withAlpha(128)),
                   const SizedBox(height: 16),
                   Text('Aucun cycle enregistré', style: TextStyle(color: colorScheme.outline)),
                 ],
@@ -101,7 +73,7 @@ class _CycleHistoryScreenState extends State<CycleHistoryScreen> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
-          Navigator.push(context, _slideTransition(const StatsScreen()));
+          Navigator.push(context, slideTransition(const StatsScreen()));
         },
         label: const Text('Statistiques'),
         icon: const Icon(Icons.bar_chart_rounded),
@@ -126,10 +98,10 @@ class _CycleHistoryScreenState extends State<CycleHistoryScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: isOngoing ? colorScheme.primaryContainer.withOpacity(0.3) : colorScheme.surface,
+        color: isOngoing ? colorScheme.primaryContainer.withAlpha(77) : colorScheme.surface,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: isOngoing ? colorScheme.primary.withOpacity(0.5) : colorScheme.outlineVariant.withOpacity(0.5),
+          color: isOngoing ? colorScheme.primary.withAlpha(128) : colorScheme.outlineVariant.withAlpha(128),
           width: isOngoing ? 2 : 1,
         ),
       ),

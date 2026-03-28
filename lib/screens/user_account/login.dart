@@ -69,7 +69,7 @@ class _LoginPageState extends State<LoginPage> {
         }
       }
     } catch (e) {
-      print("Erreur _checkBiometricAvailability: ${e.toString()}");
+      debugPrint("Erreur _checkBiometricAvailability: ${e.toString()}");
       if (mounted) {
         setState(() {
           biometricAvailable = false;
@@ -91,7 +91,7 @@ class _LoginPageState extends State<LoginPage> {
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: colorScheme.primary.withOpacity(0.1),
+                  color: colorScheme.primary.withAlpha(26),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(Icons.lock_rounded, size: 48, color: colorScheme.primary),
@@ -146,7 +146,7 @@ class _LoginPageState extends State<LoginPage> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                       decoration: BoxDecoration(
-                        color: colorScheme.primaryContainer.withOpacity(0.4),
+                        color: colorScheme.primaryContainer.withAlpha(102),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Row(
@@ -232,7 +232,7 @@ class _LoginPageState extends State<LoginPage> {
         }
       }
     } catch (e) {
-      print("Erreur _biometricAuthentication: ${e.toString()}");
+      debugPrint("Erreur _biometricAuthentication: ${e.toString()}");
       if (mounted) {
         setState(() {
           isLoading = false;

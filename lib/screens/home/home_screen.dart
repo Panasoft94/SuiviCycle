@@ -3,6 +3,7 @@ import '../dashboard/dashboard_screen.dart';
 import '../settings/settings_screen.dart';
 import '../cycles/couple_mode_screen.dart';
 import '../aide/aide_screen.dart';
+import '../../utils/widgets.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -49,18 +50,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     super.dispose();
   }
 
-  PageRouteBuilder _slideTransition(Widget page) {
-    return PageRouteBuilder(
-      pageBuilder: (_, __, ___) => page,
-      transitionsBuilder: (_, animation, __, child) {
-        return SlideTransition(
-          position: Tween(begin: const Offset(1, 0), end: Offset.zero).animate(animation),
-          child: child,
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -89,7 +78,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 decoration: BoxDecoration(color: colorScheme.primary.withAlpha(20), shape: BoxShape.circle),
                 child: Icon(Icons.help_rounded, color: colorScheme.primary, size: 20),
               ),
-              onPressed: () => Navigator.push(context, _slideTransition(const AideScreen())),
+              onPressed: () => Navigator.push(context, slideTransition(const AideScreen())),
             ),
           ),
         ],

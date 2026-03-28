@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../database/database_helper.dart';
+import '../../utils/widgets.dart';
 import 'package:intl/intl.dart';
 
 class HydrationScreen extends StatefulWidget {
@@ -48,20 +49,7 @@ class _HydrationScreenState extends State<HydrationScreen> {
       appBar: AppBar(
         title: const Text('Hydratation', style: TextStyle(fontWeight: FontWeight.bold)),
         centerTitle: true,
-        leading: IconButton(
-          icon: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(color: Colors.black.withAlpha(13), blurRadius: 10, offset: const Offset(0, 2)),
-              ],
-            ),
-            child: Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: colorScheme.primary),
-          ),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
+        leading: const AppBackButton(),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
@@ -83,13 +71,13 @@ class _HydrationScreenState extends State<HydrationScreen> {
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [Colors.blue.shade400, Colors.blue.shade700],
+          colors: [colorScheme.primary, colorScheme.secondary],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(30),
         boxShadow: [
-          BoxShadow(color: Colors.blue.withAlpha(60), blurRadius: 20, offset: const Offset(0, 10)),
+          BoxShadow(color: colorScheme.primary.withAlpha(60), blurRadius: 20, offset: const Offset(0, 10)),
         ],
       ),
       child: Column(
@@ -153,16 +141,17 @@ class _HydrationScreenState extends State<HydrationScreen> {
   Widget _buildWaterButton(double amount, String label, IconData icon, ColorScheme colorScheme) {
     return InkWell(
       onTap: () => _addWater(amount),
+      borderRadius: BorderRadius.circular(20),
       child: Column(
         children: [
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.blue.withAlpha(20),
+              color: colorScheme.primary.withAlpha(20),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.blue.withAlpha(40)),
+              border: Border.all(color: colorScheme.primary.withAlpha(40)),
             ),
-            child: Icon(icon, color: Colors.blue, size: 28),
+            child: Icon(icon, color: colorScheme.primary, size: 28),
           ),
           const SizedBox(height: 8),
           Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
@@ -197,11 +186,11 @@ class _HydrationScreenState extends State<HydrationScreen> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.water_drop_outlined, color: Colors.blue, size: 20),
+                    Icon(Icons.water_drop_outlined, color: colorScheme.primary, size: 20),
                     const SizedBox(width: 12),
                     Text(DateFormat('HH:mm').format(date), style: const TextStyle(fontWeight: FontWeight.w500)),
                     const Spacer(),
-                    Text('+${item['amount']}L', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
+                    Text('+${item['amount']}L', style: TextStyle(fontWeight: FontWeight.bold, color: colorScheme.primary)),
                   ],
                 ),
               );
