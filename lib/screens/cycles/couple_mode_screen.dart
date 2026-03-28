@@ -3,15 +3,8 @@ import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import '../../database/database_helper.dart';
 import '../../models/cycle.dart';
+import '../../utils/string_extensions.dart';
 import 'dart:async';
-
-// Helper extension to capitalize strings
-extension StringExtension on String {
-  String capitalize() {
-    if (isEmpty) return "";
-    return "${this[0].toUpperCase()}${substring(1)}";
-  }
-}
 
 class CoupleModeScreen extends StatefulWidget {
   const CoupleModeScreen({super.key});

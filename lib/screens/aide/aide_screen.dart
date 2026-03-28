@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../utils/widgets.dart';
 
 class AideScreen extends StatelessWidget {
   const AideScreen({super.key});
@@ -13,24 +14,7 @@ class AideScreen extends StatelessWidget {
         elevation: 0,
         backgroundColor: colorScheme.surface,
         foregroundColor: colorScheme.onSurface,
-        leading: IconButton(
-          icon: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withAlpha(13),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: colorScheme.primary),
-          ),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
+        leading: const AppBackButton(),
       ),
       body: ListView(
         padding: const EdgeInsets.all(20.0),
@@ -86,7 +70,7 @@ class AideScreen extends StatelessWidget {
           const SizedBox(height: 48),
           Center(
             child: Text(
-              'Version 1.0.6',
+              'Version 1.1.0',
               style: TextStyle(color: colorScheme.outline, fontSize: 12, fontWeight: FontWeight.w500),
             ),
           ),

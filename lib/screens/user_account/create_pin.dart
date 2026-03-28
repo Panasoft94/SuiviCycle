@@ -78,7 +78,7 @@ class _CreatePinPageState extends State<CreatePinPage> {
                 Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
-                    color: colorScheme.primary.withOpacity(0.1),
+                    color: colorScheme.primary.withAlpha(26),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(Icons.lock_person_rounded, size: 64, color: colorScheme.primary),

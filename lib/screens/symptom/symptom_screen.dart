@@ -4,6 +4,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../database/database_helper.dart';
 import '../../models/symptom.dart';
+import '../../utils/widgets.dart';
 import 'add_symptom_screen.dart';
 
 class SymptomScreen extends StatefulWidget {
@@ -35,18 +36,6 @@ class _SymptomScreenState extends State<SymptomScreen> {
     });
   }
 
-  PageRouteBuilder _slideTransition(Widget page) {
-    return PageRouteBuilder(
-      pageBuilder: (_, __, ___) => page,
-      transitionsBuilder: (_, animation, __, child) {
-        return SlideTransition(
-          position: Tween(begin: const Offset(1, 0), end: Offset.zero).animate(animation),
-          child: child,
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -57,24 +46,7 @@ class _SymptomScreenState extends State<SymptomScreen> {
         elevation: 0,
         backgroundColor: colorScheme.surface,
         foregroundColor: colorScheme.onSurface,
-        leading: IconButton(
-          icon: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withAlpha(13),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: colorScheme.primary),
-          ),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
+        leading: const AppBackButton(),
       ),
       body: FutureBuilder<List<Symptom>>(
         future: _symptomsFuture,
@@ -87,7 +59,7 @@ class _SymptomScreenState extends State<SymptomScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.assignment_rounded, size: 64, color: colorScheme.outline.withOpacity(0.5)),
+                  Icon(Icons.assignment_rounded, size: 64, color: colorScheme.outline.withAlpha(128)),
                   const SizedBox(height: 16),
                   Text('Aucune entrée pour ce cycle', style: TextStyle(color: colorScheme.outline)),
                   const SizedBox(height: 8),
@@ -132,7 +104,7 @@ class _SymptomScreenState extends State<SymptomScreen> {
   }
 
   void _navigateToAddSymptom() async {
-    final result = await Navigator.push(context, _slideTransition(AddSymptomScreen(cycleId: widget.cycleId)));
+    final result = await Navigator.push(context, slideTransition(AddSymptomScreen(cycleId: widget.cycleId)));
     if (result == true) {
       _loadSymptoms();
     }
@@ -140,6 +112,7 @@ class _SymptomScreenState extends State<SymptomScreen> {
 
   Widget _buildChart(List<Symptom> symptoms) {
     final spots = _getChartSpots(symptoms);
+    final colorScheme = Theme.of(context).colorScheme;
     if (spots.length < 2) {
       return Container(
         height: 200,
@@ -167,11 +140,11 @@ class _SymptomScreenState extends State<SymptomScreen> {
             LineChartBarData(
               spots: spots,
               isCurved: true,
-              color: Colors.brown,
+              color: colorScheme.primary,
               barWidth: 4,
               isStrokeCapRound: true,
               dotData: FlDotData(show: true),
-              belowBarData: BarAreaData(show: true, color: Colors.brown.withOpacity(0.2)),
+              belowBarData: BarAreaData(show: true, color: colorScheme.primary.withAlpha(51)),
             ),
           ],
         ),
@@ -243,7 +216,7 @@ class _SymptomScreenState extends State<SymptomScreen> {
       decoration: BoxDecoration(
         color: colorScheme.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: colorScheme.outlineVariant.withOpacity(0.5)),
+        border: Border.all(color: colorScheme.outlineVariant.withAlpha(128)),
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.all(16),
@@ -287,7 +260,7 @@ class _SymptomScreenState extends State<SymptomScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withAlpha(26),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Row(
