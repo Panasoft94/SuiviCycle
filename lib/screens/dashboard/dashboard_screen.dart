@@ -7,19 +7,13 @@ import '../../models/cycle.dart';
 import '../../models/settings.dart';
 import '../../models/symptom.dart';
 import '../../services/notification_service.dart';
+import '../../utils/string_extensions.dart';
 import '../symptom/symptom_screen.dart';
 import '../cycles/cycle_history_screen.dart';
 import '../cycles/prediction_details_screen.dart';
 import '../stats/stats_screen.dart';
 import '../hydration/hydration_screen.dart';
-
-// Helper extension to capitalize strings
-extension StringExtension on String {
-  String capitalize() {
-    if (isEmpty) return "";
-    return "${this[0].toUpperCase()}${substring(1)}";
-  }
-}
+import '../../utils/widgets.dart';
 
 // Classe de données pour le FutureBuilder
 class DashboardData {
@@ -94,21 +88,11 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       }
     }
 
-    // Utilisation de .firstWhereOrNull (si importé, sinon la solution orElse: () => null)
-    // En se basant sur la version précédente, nous utilisons l'orElse corrigé pour éviter l'erreur de type :
     Cycle? activeCycle;
-    try {
-      activeCycle = cycles.firstWhere(
-            (cycle) => cycle.endDate == null,
-        orElse: () => cycles.isNotEmpty && cycles.first.endDate == null ? cycles.first : throw Exception('No active cycle or list is empty'),
-      );
-    } catch (_) {
-      activeCycle = null;
-    }
-    // Simplification pour éviter l'erreur de type précédente :
-    if (activeCycle == null) {
-      activeCycle = cycles.cast<Cycle?>().firstWhere((cycle) => cycle?.endDate == null, orElse: () => null);
-    }
+    activeCycle = cycles.cast<Cycle?>().firstWhere(
+      (cycle) => cycle?.endDate == null,
+      orElse: () => null,
+    );
 
 
     _currentCycle = activeCycle;
@@ -188,18 +172,18 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       if (_notificationService.isReady) {
         await _notificationService.cancelAllNotifications();
         if (settings.notifyOvulation && ovulationDate != null) {
-          _notificationService.scheduleNotification(
+          await _notificationService.scheduleNotification(
             id: 0,
             title: 'Ovulation Bientôt',
             body: 'Votre ovulation est prévue pour aujourd\'hui. C\'est le début de votre fenêtre de fertilité.',
             scheduledDate: ovulationDate,
           );
         }
-        if (settings.notifyPeriod && expectedPeriod != null) {
-          _notificationService.scheduleNotification(
+        if (settings.notifyPeriod) {
+          await _notificationService.scheduleNotification(
             id: 1,
             title: 'Règles en Approche',
-            body: 'Vos règles sont prévues dans 2 jours.',
+            body: 'Vos règles sont prévues dans 2 jours. Pensez à vous préparer.',
             scheduledDate: expectedPeriod.subtract(const Duration(days: 2)),
             repeatDaily: true,
           );
@@ -244,18 +228,6 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
             floatingActionButton: _buildFloatingActionButton(),
           );
         }
-      },
-    );
-  }
-
-  PageRouteBuilder _slideTransition(Widget page) {
-    return PageRouteBuilder(
-      pageBuilder: (_, __, ___) => page,
-      transitionsBuilder: (_, animation, __, child) {
-        return SlideTransition(
-          position: Tween(begin: const Offset(1, 0), end: Offset.zero).animate(animation),
-          child: child,
-        );
       },
     );
   }
@@ -742,7 +714,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
             icon: Icons.history_rounded,
             title: 'Historique des cycles',
             subtitle: 'Consultez vos cycles précédents.',
-            onTap: () => Navigator.push(context, _slideTransition(const CycleHistoryScreen())),
+            onTap: () => Navigator.push(context, slideTransition(const CycleHistoryScreen())),
           ),
           const SizedBox(height: 12),
           _buildFeatureTile(
@@ -751,7 +723,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
             subtitle: 'Douleurs, humeur, énergie...',
             onTap: () {
               if (_currentCycle != null && _currentCycle!.id != null) {
-                Navigator.push(context, _slideTransition(SymptomScreen(cycleId: _currentCycle!.id!)));
+                Navigator.push(context, slideTransition(SymptomScreen(cycleId: _currentCycle!.id!)));
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Veuillez d'abord démarrer un cycle.")));
               }
@@ -762,21 +734,21 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
             icon: Icons.water_drop_rounded,
             title: 'Analyse de l\'hydratation',
             subtitle: 'Suivez votre consommation d\'eau.',
-            onTap: () => Navigator.push(context, _slideTransition(const HydrationScreen())),
+            onTap: () => Navigator.push(context, slideTransition(const HydrationScreen())),
           ),
           const SizedBox(height: 12),
           _buildFeatureTile(
             icon: Icons.bar_chart_rounded,
             title: 'Statistiques et visualisations',
             subtitle: 'Graphiques, heatmap et calendrier.',
-            onTap: () => Navigator.push(context, _slideTransition(const StatsScreen())),
+            onTap: () => Navigator.push(context, slideTransition(const StatsScreen())),
           ),
           const SizedBox(height: 12),
           _buildFeatureTile(
             icon: Icons.smart_toy_rounded,
             title: 'Prédictions intelligentes',
             subtitle: 'Algorithme adaptatif et ajustements.',
-            onTap: () => Navigator.push(context, _slideTransition(const PredictionDetailsScreen())),
+            onTap: () => Navigator.push(context, slideTransition(const PredictionDetailsScreen())),
           ),
         ],
       ),

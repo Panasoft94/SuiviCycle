@@ -2,10 +2,12 @@ import '../user_account/create_pin.dart';
 import '../user_account/user_account_screen.dart';
 import 'package:flutter/material.dart';
 import '../../database/database_helper.dart';
+import '../../models/cycle.dart';
 import '../../models/settings.dart';
 import '../../services/backup_service.dart';
 import '../../services/notification_service.dart';
-import '../../main.dart'; // Import main.dart to access MyAppState
+import '../../utils/widgets.dart';
+import '../../main.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -26,30 +28,60 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _settingsFuture = _dbHelper.getSettings();
   }
 
-  void _updateSettings(AppSettings settings) {
-    _dbHelper.updateSettings(settings);
+  void _updateSettings(AppSettings settings) async {
+    await _dbHelper.updateSettings(settings);
     setState(() {
       _settingsFuture = Future.value(settings);
     });
 
-    // Update notifications based on new settings
-    if (!settings.notifyPeriod) _notificationService.cancelNotification(1);
-    if (!settings.notifyOvulation) _notificationService.cancelNotification(0);
+    // Cancel notifications that are turned off
+    if (!settings.notifyPeriod) await _notificationService.cancelNotification(1);
+    if (!settings.notifyOvulation) await _notificationService.cancelNotification(0);
 
-    // You might want to re-schedule notifications here if they are enabled
-    // but the logic is currently in the dashboard screen.
+    // Re-schedule notifications when toggled ON
+    if (settings.notifyPeriod || settings.notifyOvulation) {
+      await _rescheduleNotifications(settings);
+    }
   }
 
-  PageRouteBuilder _slideTransition(Widget page) {
-    return PageRouteBuilder(
-      pageBuilder: (_, __, ___) => page,
-      transitionsBuilder: (_, animation, __, child) {
-        return SlideTransition(
-          position: Tween(begin: const Offset(1, 0), end: Offset.zero).animate(animation),
-          child: child,
-        );
-      },
+  Future<void> _rescheduleNotifications(AppSettings settings) async {
+    if (!_notificationService.isReady) return;
+
+    final cycles = await _dbHelper.getCycles();
+    final activeCycle = cycles.cast<Cycle?>().firstWhere(
+      (cycle) => cycle?.endDate == null,
+      orElse: () => null,
     );
+
+    if (activeCycle == null) return;
+
+    final avgCycleLength = await _dbHelper.getAverageCycleLength();
+    final cycleLength = avgCycleLength?.round() ?? settings.defaultCycleLength;
+
+    DateTime? ovulationDate;
+    if (cycleLength > 15) {
+      ovulationDate = activeCycle.startDate.add(Duration(days: cycleLength - 14));
+    }
+    final expectedPeriod = activeCycle.startDate.add(Duration(days: cycleLength));
+
+    if (settings.notifyOvulation && ovulationDate != null) {
+      await _notificationService.scheduleNotification(
+        id: 0,
+        title: 'Ovulation Bientôt',
+        body: 'Votre ovulation est prévue pour aujourd\'hui. C\'est le début de votre fenêtre de fertilité.',
+        scheduledDate: ovulationDate,
+      );
+    }
+
+    if (settings.notifyPeriod) {
+      await _notificationService.scheduleNotification(
+        id: 1,
+        title: 'Règles en Approche',
+        body: 'Vos règles sont prévues dans 2 jours. Pensez à vous préparer.',
+        scheduledDate: expectedPeriod.subtract(const Duration(days: 2)),
+        repeatDaily: true,
+      );
+    }
   }
 
   @override
@@ -111,9 +143,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   final bool userExists = await _dbHelper.hasUser();
                   if (!mounted) return;
                   if (userExists) {
-                    Navigator.push(context, _slideTransition(const UserAccountScreen()));
+                    Navigator.push(context, slideTransition(const UserAccountScreen()));
                   } else {
-                    Navigator.push(context, _slideTransition(const CreatePinPage()));
+                    Navigator.push(context, slideTransition(const CreatePinPage()));
                   }
                 },
               ),

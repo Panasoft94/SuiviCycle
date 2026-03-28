@@ -3,6 +3,7 @@ import 'package:flutter_heatmap_calendar/flutter_heatmap_calendar.dart';
 import '../../database/database_helper.dart';
 import '../../models/cycle.dart';
 import '../../models/symptom.dart';
+import '../../utils/widgets.dart';
 
 class StatsScreen extends StatefulWidget {
   const StatsScreen({super.key});
@@ -106,24 +107,7 @@ class _StatsScreenState extends State<StatsScreen> {
         elevation: 0,
         backgroundColor: colorScheme.surface,
         foregroundColor: colorScheme.onSurface,
-        leading: IconButton(
-          icon: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withAlpha(13),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: colorScheme.primary),
-          ),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
+        leading: const AppBackButton(),
       ),
       body: FutureBuilder<Map<String, dynamic>>(
         future: _statsDataFuture,
@@ -240,7 +224,7 @@ class _StatsScreenState extends State<StatsScreen> {
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
       leading: Container(
         padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+        decoration: BoxDecoration(color: color.withAlpha(26), borderRadius: BorderRadius.circular(10)),
         child: Icon(icon, color: color, size: 20),
       ),
       title: Text(label, style: const TextStyle(fontSize: 14)),
@@ -275,7 +259,7 @@ class _StatsScreenState extends State<StatsScreen> {
             title: Text(entry.key),
             trailing: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              decoration: BoxDecoration(color: colorScheme.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+              decoration: BoxDecoration(color: colorScheme.primary.withAlpha(26), borderRadius: BorderRadius.circular(12)),
               child: Text('${entry.value}', style: TextStyle(fontWeight: FontWeight.bold, color: colorScheme.primary)),
             ),
           );

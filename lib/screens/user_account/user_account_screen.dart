@@ -1,6 +1,7 @@
 import 'package:cycles/database/database_helper.dart';
 import 'package:cycles/screens/user_account/change_pin_screen.dart';
 import 'package:flutter/material.dart';
+import '../../utils/widgets.dart';
 
 // --- Modèle de Données ---
 class User {
@@ -65,18 +66,6 @@ class _UserAccountScreenState extends State<UserAccountScreen> {
     );
   }
 
-  PageRouteBuilder _slideTransition(Widget page) {
-    return PageRouteBuilder(
-      pageBuilder: (_, __, ___) => page,
-      transitionsBuilder: (_, animation, __, child) {
-        return SlideTransition(
-          position: Tween(begin: const Offset(1, 0), end: Offset.zero).animate(animation),
-          child: child,
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -87,24 +76,7 @@ class _UserAccountScreenState extends State<UserAccountScreen> {
         elevation: 0,
         backgroundColor: colorScheme.surface,
         foregroundColor: colorScheme.onSurface,
-        leading: IconButton(
-          icon: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withAlpha(13),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: colorScheme.primary),
-          ),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
+        leading: const AppBackButton(),
       ),
       body: FutureBuilder<Map<String, dynamic>?>(
         future: _dbHelper.getUser(),
@@ -117,7 +89,7 @@ class _UserAccountScreenState extends State<UserAccountScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.person_off_rounded, size: 64, color: colorScheme.outline.withOpacity(0.5)),
+                  Icon(Icons.person_off_rounded, size: 64, color: colorScheme.outline.withAlpha(128)),
                   const SizedBox(height: 16),
                   const Text("Aucun utilisateur trouvé."),
                 ],
@@ -142,7 +114,7 @@ class _UserAccountScreenState extends State<UserAccountScreen> {
                 icon: Icons.lock_rounded,
                 title: 'Changer le code PIN',
                 onTap: () {
-                   Navigator.of(context).push(_slideTransition(const ChangePinScreen()));
+                   Navigator.of(context).push(slideTransition(const ChangePinScreen()));
                 },
                 color: Colors.orange,
               ),
@@ -181,7 +153,7 @@ class _UserAccountScreenState extends State<UserAccountScreen> {
         borderRadius: BorderRadius.circular(30),
         boxShadow: [
           BoxShadow(
-            color: colorScheme.primary.withOpacity(0.3),
+            color: colorScheme.primary.withAlpha(77),
             blurRadius: 15,
             offset: const Offset(0, 8),
           ),
@@ -229,14 +201,14 @@ class _UserAccountScreenState extends State<UserAccountScreen> {
       decoration: BoxDecoration(
         color: colorScheme.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: colorScheme.outlineVariant.withOpacity(0.5)),
+        border: Border.all(color: colorScheme.outlineVariant.withAlpha(128)),
       ),
       child: ListTile(
         onTap: onTap,
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
         leading: Container(
           padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+          decoration: BoxDecoration(color: color.withAlpha(26), borderRadius: BorderRadius.circular(10)),
           child: Icon(icon, color: color, size: 20),
         ),
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.w500)),

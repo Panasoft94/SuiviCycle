@@ -53,6 +53,9 @@ class _MyAppState extends State<MyApp> {
     });
   }
 
+  static const _primaryColor = Color(0xFFE91E63);
+  static const _secondaryColor = Color(0xFFF48FB1);
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -61,9 +64,9 @@ class _MyAppState extends State<MyApp> {
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFFE91E63), // Pink
-          primary: const Color(0xFFE91E63),
-          secondary: const Color(0xFFF48FB1),
+          seedColor: _primaryColor,
+          primary: _primaryColor,
+          secondary: _secondaryColor,
           surface: Colors.white,
           brightness: Brightness.light,
         ),
@@ -80,15 +83,24 @@ class _MyAppState extends State<MyApp> {
           color: const Color(0xFFF8F0F2),
         ),
         floatingActionButtonTheme: FloatingActionButtonThemeData(
-          backgroundColor: const Color(0xFFE91E63),
+          backgroundColor: _primaryColor,
           foregroundColor: Colors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        ),
+        snackBarTheme: SnackBarThemeData(
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+        dialogTheme: DialogThemeData(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         ),
       ),
       darkTheme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFFE91E63),
+          seedColor: _primaryColor,
+          primary: _primaryColor,
+          secondary: _secondaryColor,
           brightness: Brightness.dark,
         ),
         fontFamily: 'Roboto',
@@ -98,6 +110,18 @@ class _MyAppState extends State<MyApp> {
         ),
         cardTheme: CardThemeData(
           elevation: 0,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        ),
+        floatingActionButtonTheme: FloatingActionButtonThemeData(
+          backgroundColor: _primaryColor,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        ),
+        snackBarTheme: SnackBarThemeData(
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+        dialogTheme: DialogThemeData(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         ),
       ),
