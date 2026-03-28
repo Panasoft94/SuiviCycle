@@ -186,7 +186,7 @@ class _HydrationScreenState extends State<HydrationScreen> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.water_drop_outlined, color: Color(0xFFE91E63), size: 20),
+                    Icon(Icons.water_drop_outlined, color: colorScheme.primary, size: 20),
                     const SizedBox(width: 12),
                     Text(DateFormat('HH:mm').format(date), style: const TextStyle(fontWeight: FontWeight.w500)),
                     const Spacer(),

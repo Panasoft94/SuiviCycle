@@ -39,7 +39,7 @@ class _CreatePinPageState extends State<CreatePinPage> {
         SnackBar(
           content: const Text('Votre code PIN a été créé avec succès !'),
           behavior: SnackBarBehavior.floating,
-          backgroundColor: Colors.brown[700],
+          backgroundColor: const Color(0xFFE91E63),
         ),
       );
 

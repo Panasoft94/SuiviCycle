@@ -71,7 +71,7 @@ class _ChangePinScreenState extends State<ChangePinScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('Code PIN modifié avec succès !'),
-            backgroundColor: Colors.brown[700],
+            backgroundColor: const Color(0xFFE91E63),
             behavior: SnackBarBehavior.floating,
           ),
         );
