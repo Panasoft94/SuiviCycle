@@ -34,11 +34,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _settingsFuture = Future.value(settings);
     });
 
-    // Cancel notifications that are turned off
-    if (!settings.notifyPeriod) await _notificationService.cancelNotification(1);
-    if (!settings.notifyOvulation) await _notificationService.cancelNotification(0);
+    // Annuler toutes les anciennes notifications et reprogrammer
+    if (_notificationService.isReady) {
+      await _notificationService.cancelAllNotifications();
+    }
 
-    // Re-schedule notifications when toggled ON
+    // Reprogrammer si au moins un type est activé
     if (settings.notifyPeriod || settings.notifyOvulation) {
       await _rescheduleNotifications(settings);
     }
@@ -64,22 +65,59 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
     final expectedPeriod = activeCycle.startDate.add(Duration(days: cycleLength));
 
+    // --- Notifications Ovulation (J-3, J-2, J-1, Jour J) ---
     if (settings.notifyOvulation && ovulationDate != null) {
       await _notificationService.scheduleNotification(
-        id: 0,
-        title: 'Ovulation Bientôt',
-        body: 'Votre ovulation est prévue pour aujourd\'hui. C\'est le début de votre fenêtre de fertilité.',
+        id: 10,
+        title: '🌸 Ovulation dans 3 jours',
+        body: 'Votre ovulation est prévue dans 3 jours. Votre fenêtre de fertilité approche.',
+        scheduledDate: ovulationDate.subtract(const Duration(days: 3)),
+      );
+      await _notificationService.scheduleNotification(
+        id: 11,
+        title: '🌸 Ovulation dans 2 jours',
+        body: 'Votre ovulation est prévue dans 2 jours.',
+        scheduledDate: ovulationDate.subtract(const Duration(days: 2)),
+      );
+      await _notificationService.scheduleNotification(
+        id: 12,
+        title: '🌸 Ovulation demain',
+        body: 'Votre ovulation est prévue demain. Début de votre pic de fertilité.',
+        scheduledDate: ovulationDate.subtract(const Duration(days: 1)),
+      );
+      await _notificationService.scheduleNotification(
+        id: 13,
+        title: '🌸 Jour d\'ovulation',
+        body: 'C\'est votre jour d\'ovulation prévu. Votre fertilité est à son maximum.',
         scheduledDate: ovulationDate,
       );
     }
 
+    // --- Notifications Règles / Nouveau cycle (J-3, J-2, J-1, Jour J) ---
     if (settings.notifyPeriod) {
       await _notificationService.scheduleNotification(
-        id: 1,
-        title: 'Règles en Approche',
-        body: 'Vos règles sont prévues dans 2 jours. Pensez à vous préparer.',
+        id: 20,
+        title: '🔴 Règles dans 3 jours',
+        body: 'Vos prochaines règles sont prévues dans 3 jours. Pensez à vous préparer.',
+        scheduledDate: expectedPeriod.subtract(const Duration(days: 3)),
+      );
+      await _notificationService.scheduleNotification(
+        id: 21,
+        title: '🔴 Règles dans 2 jours',
+        body: 'Vos prochaines règles sont prévues dans 2 jours.',
         scheduledDate: expectedPeriod.subtract(const Duration(days: 2)),
-        repeatDaily: true,
+      );
+      await _notificationService.scheduleNotification(
+        id: 22,
+        title: '🔴 Règles demain',
+        body: 'Vos prochaines règles sont prévues demain. Préparez-vous.',
+        scheduledDate: expectedPeriod.subtract(const Duration(days: 1)),
+      );
+      await _notificationService.scheduleNotification(
+        id: 23,
+        title: '🔴 Début de cycle prévu',
+        body: 'Vos règles sont prévues pour aujourd\'hui. Un nouveau cycle peut commencer.',
+        scheduledDate: expectedPeriod,
       );
     }
   }

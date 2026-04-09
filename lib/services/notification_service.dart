@@ -20,7 +20,18 @@ class NotificationService {
   Future<void> init() async {
     try {
       tz.initializeTimeZones();
-      final locationName = (await FlutterTimezone.getLocalTimezone()).identifier;
+
+      // FlutterTimezone.getLocalTimezone() retourne TimezoneInfo en v5.x
+      // On accède à .identifier pour obtenir le nom du fuseau horaire
+      String locationName;
+      try {
+        final timezoneInfo = await FlutterTimezone.getLocalTimezone();
+        locationName = timezoneInfo.identifier;
+      } catch (_) {
+        // Fallback si la détection du fuseau échoue
+        locationName = 'Africa/Kinshasa';
+      }
+
       tz.setLocalLocation(tz.getLocation(locationName));
 
       const androidSettings =
@@ -46,10 +57,35 @@ class NotificationService {
       await _checkExactAlarmPermission();
 
       _isReady = true;
-      if (kDebugMode) print('✅ NotificationService prêt');
+      if (kDebugMode) print('✅ NotificationService prêt (timezone: $locationName)');
     } catch (e, stack) {
       debugPrint('❌ Erreur init NotificationService: $e');
       debugPrintStack(stackTrace: stack);
+      // Tenter une initialisation minimale même en cas d'erreur
+      await _tryMinimalInit();
+    }
+  }
+
+  /// Initialisation de secours si l'init principale échoue
+  Future<void> _tryMinimalInit() async {
+    try {
+      if (_isReady) return;
+
+      tz.initializeTimeZones();
+      tz.setLocalLocation(tz.getLocation('Africa/Kinshasa'));
+
+      const androidSettings =
+      AndroidInitializationSettings('@mipmap/ic_launcher');
+      const initializationSettings =
+      InitializationSettings(android: androidSettings);
+
+      await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+      await _requestPermissions();
+
+      _isReady = true;
+      if (kDebugMode) print('⚠️ NotificationService initialisé en mode fallback');
+    } catch (e) {
+      debugPrint('❌ Échec total de l\'init NotificationService: $e');
     }
   }
 
@@ -98,14 +134,13 @@ class NotificationService {
     required String title,
     required String body,
     required DateTime scheduledDate,
-    bool repeatDaily = false,
   }) async {
     if (!_isReady) {
-      if (kDebugMode) print('❌ Service non prêt. Notification ignorée.');
+      if (kDebugMode) print('❌ Service non prêt. Notification #$id ignorée.');
       return;
     }
 
-    // Schedule at 9:00 AM on the target date for a better user experience
+    // Programmer à 9h00 le matin du jour cible
     var scheduledTZDate = tz.TZDateTime(
       tz.local,
       scheduledDate.year,
@@ -117,22 +152,10 @@ class NotificationService {
 
     final now = tz.TZDateTime.now(tz.local);
 
-    // If the scheduled date is in the past and repeat is requested,
-    // schedule for the same time tomorrow so notifications still fire
+    // Si la date est passée, ignorer silencieusement
     if (scheduledTZDate.isBefore(now)) {
-      if (repeatDaily) {
-        scheduledTZDate = tz.TZDateTime(
-          tz.local,
-          now.year,
-          now.month,
-          now.day + 1,
-          9,
-          0,
-        );
-      } else {
-        if (kDebugMode) print('⚠️ Notification #$id ignorée car la date est passée: $scheduledTZDate');
-        return;
-      }
+      if (kDebugMode) print('⚠️ Notification #$id ignorée car la date est passée: $scheduledTZDate');
+      return;
     }
 
     const notificationDetails = NotificationDetails(
@@ -144,6 +167,11 @@ class NotificationService {
         priority: Priority.high,
         icon: '@mipmap/ic_launcher',
       ),
+      iOS: DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      ),
     );
 
     try {
@@ -154,7 +182,6 @@ class NotificationService {
         scheduledTZDate,
         notificationDetails,
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        matchDateTimeComponents: repeatDaily ? DateTimeComponents.time : null,
       );
       if (kDebugMode) {
         print('✅ Notification #$id planifiée pour $scheduledTZDate');
