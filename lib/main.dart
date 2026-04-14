@@ -31,6 +31,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   bool _autoLockEnabled = false;
   bool _hasUserCached = false;
   bool _unlockCooldown = false; // empêche la re-boucle après déverrouillage
+  bool _loginCompleted = false; // empêche le lock avant la fin du login initial
 
   @override
   void initState() {
@@ -63,6 +64,11 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     _autoLockEnabled = enabled;
   }
 
+  /// Appelé depuis LoginPage après un login réussi
+  void markLoginCompleted() {
+    _loginCompleted = true;
+  }
+
   // ── Lifecycle observer pour verrouillage auto ──
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
@@ -88,6 +94,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
   Future<void> _tryShowLockScreen() async {
     if (_isLocked || _unlockCooldown) return;
+
+    // Ne pas verrouiller tant que le login initial n'est pas terminé
+    if (!_loginCompleted) return;
 
     // Vérification rapide avec le cache (pas de DB async)
     if (!_autoLockEnabled || !_hasUserCached) {
@@ -157,7 +166,13 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     final bool userExists = await _dbHelper.hasUser();
     if (mounted) {
       setState(() {
-        _initialScreen = userExists ? const LoginPage() : const HomeScreen();
+        if (userExists) {
+          _initialScreen = const LoginPage();
+          _loginCompleted = false; // attendre la fin du login
+        } else {
+          _initialScreen = const HomeScreen();
+          _loginCompleted = true; // pas de login nécessaire
+        }
       });
     }
   }

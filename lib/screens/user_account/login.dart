@@ -5,6 +5,7 @@ import 'package:another_flushbar/flushbar.dart';
 import 'package:cycles/screens/home/home_screen.dart';
 import 'package:cycles/database/database_helper.dart';
 import 'package:flutter/services.dart';
+import '../../main.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -192,6 +193,9 @@ class _LoginPageState extends State<LoginPage> {
 
   void _redirectionHome() {
     if (!mounted) return;
+    // Signaler à MyApp que le login initial est terminé
+    // pour que le verrouillage auto puisse fonctionner normalement
+    MyApp.of(context).markLoginCompleted();
     Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (context) {
       return const HomeScreen();
     }));
