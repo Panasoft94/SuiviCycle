@@ -64,9 +64,16 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     _autoLockEnabled = enabled;
   }
 
-  /// Appelé depuis LoginPage après un login réussi
+  /// Appelé depuis LoginPage après un login réussi.
+  /// Active aussi un cooldown pour ignorer les lifecycle events
+  /// provoqués par le dialogue biométrique du login.
   void markLoginCompleted() {
     _loginCompleted = true;
+    _wasInBackground = false;
+    _unlockCooldown = true;
+    Future.delayed(const Duration(milliseconds: 2000), () {
+      _unlockCooldown = false;
+    });
   }
 
   // ── Lifecycle observer pour verrouillage auto ──
