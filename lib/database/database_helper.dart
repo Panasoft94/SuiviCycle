@@ -12,7 +12,7 @@ class DatabaseHelper {
 
   static Database? _database;
   static const _dbName = 'cycles.db';
-  static const _dbVersion = 10; // Incremented version for hydration table
+  static const _dbVersion = 11; // Added auto_lock to settings
 
   Future<Database> get database async {
     if (_database != null && _database!.isOpen) return _database!;
@@ -127,6 +127,14 @@ class DatabaseHelper {
         goal_met INTEGER DEFAULT 0
       )
       ''');
+    }
+
+    if (oldVersion < 11) {
+      try {
+        await db.execute('ALTER TABLE settings ADD COLUMN auto_lock INTEGER DEFAULT 0');
+      } catch (_) {
+        // Column may already exist
+      }
     }
   }
 

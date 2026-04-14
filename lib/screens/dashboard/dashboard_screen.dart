@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'dart:async';
+import 'dart:math' as math;
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import '../../database/database_helper.dart';
@@ -15,14 +15,44 @@ import '../stats/stats_screen.dart';
 import '../hydration/hydration_screen.dart';
 import '../../utils/widgets.dart';
 
-// Classe de données pour le FutureBuilder
+// ═══════════════════════════════════════════
+// DASHBOARD SCREEN — TABLEAU DE BORD PRINCIPAL
+// ═══════════════════════════════════════════
+
 class DashboardData {
   final Cycle? currentCycle;
   final AppSettings settings;
   final double? avgCycleLength;
   final double? avgPeriodLength;
   final Symptom? todaysSymptom;
-  DashboardData(this.currentCycle, this.settings, this.avgCycleLength, this.avgPeriodLength, this.todaysSymptom);
+  final double todayHydration;
+  final int totalCycles;
+
+  DashboardData(
+    this.currentCycle,
+    this.settings,
+    this.avgCycleLength,
+    this.avgPeriodLength,
+    this.todaysSymptom,
+    this.todayHydration,
+    this.totalCycles,
+  );
+}
+
+class _PhaseConfig {
+  final String label;
+  final String emoji;
+  final Color color;
+  final String advice;
+  final IconData icon;
+
+  const _PhaseConfig({
+    required this.label,
+    required this.emoji,
+    required this.color,
+    required this.advice,
+    required this.icon,
+  });
 }
 
 class DashboardScreen extends StatefulWidget {
@@ -32,7 +62,8 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProviderStateMixin {
+class _DashboardScreenState extends State<DashboardScreen>
+    with SingleTickerProviderStateMixin {
   final DatabaseHelper _dbHelper = DatabaseHelper();
   final NotificationService _notificationService = NotificationService();
   Cycle? _currentCycle;
@@ -42,15 +73,62 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
 
+  static const Map<String, _PhaseConfig> _phaseConfigs = {
+    'règles': _PhaseConfig(
+      label: 'Règles',
+      emoji: '🩸',
+      color: Color(0xFFE53935),
+      advice:
+          'Privilégiez le repos et les aliments riches en fer comme les épinards ou les lentilles.',
+      icon: Icons.spa_rounded,
+    ),
+    'folliculaire': _PhaseConfig(
+      label: 'Folliculaire',
+      emoji: '🌱',
+      color: Color(0xFFFB8C00),
+      advice:
+          'Votre énergie remonte ! C\'est le moment idéal pour de nouveaux projets ou du sport intensif.',
+      icon: Icons.bolt_rounded,
+    ),
+    'ovulation': _PhaseConfig(
+      label: 'Ovulation',
+      emoji: '🌸',
+      color: Color(0xFFE91E63),
+      advice:
+          'Pic de libido et de confiance en soi. Votre peau est souvent plus éclatante !',
+      icon: Icons.auto_awesome_rounded,
+    ),
+    'lutéale': _PhaseConfig(
+      label: 'Lutéale',
+      emoji: '🌙',
+      color: Color(0xFF7E57C2),
+      advice:
+          'Réduisez le sel et la caféine pour limiter les ballonnements et l\'irritabilité.',
+      icon: Icons.self_improvement_rounded,
+    ),
+  };
+
+  static const _PhaseConfig _defaultPhaseConfig = _PhaseConfig(
+    label: 'En attente',
+    emoji: '✨',
+    color: Color(0xFF78909C),
+    advice:
+        'Continuez à noter vos symptômes pour des conseils plus personnalisés.',
+    icon: Icons.lightbulb_rounded,
+  );
+
   @override
   void initState() {
     super.initState();
     initializeDateFormatting('fr_FR', null);
     _animationController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 900),
     );
-    _fadeAnimation = CurvedAnimation(parent: _animationController, curve: Curves.easeInOut);
+    _fadeAnimation = CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeOutCubic,
+    );
     _initialDataFuture = _loadInitialData();
   }
 
@@ -60,28 +138,40 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     super.dispose();
   }
 
-    Future<DashboardData> _loadInitialData() async {
+  // ═══════════════════════════════
+  // DATA LOADING (logique inchangée)
+  // ═══════════════════════════════
+
+  Future<DashboardData> _loadInitialData() async {
     _animationController.reset();
 
     final cycles = await _dbHelper.getCycles();
     final settings = await _dbHelper.getSettings();
     final avgCycleLength = await _dbHelper.getAverageCycleLength();
+    final todayHydration = await _dbHelper.getTodayTotalHydration();
 
-    // Calculer la durée moyenne des règles manuellement car non dispo directement dans dbHelper pour dashboard
     double? avgPeriodLength;
-    final periodCycles = cycles.where((c) => c.periodEndDate != null).toList();
+    final periodCycles =
+        cycles.where((c) => c.periodEndDate != null).toList();
     if (periodCycles.isNotEmpty) {
-      avgPeriodLength = periodCycles.map((c) => c.periodEndDate!.difference(c.startDate).inDays + 1).reduce((a, b) => a + b) / periodCycles.length;
+      avgPeriodLength = periodCycles
+              .map((c) =>
+                  c.periodEndDate!.difference(c.startDate).inDays + 1)
+              .reduce((a, b) => a + b) /
+          periodCycles.length;
     }
 
-    // Récupérer le symptôme d'aujourd'hui
     Symptom? todaysSymptom;
     if (cycles.isNotEmpty && cycles.first.id != null) {
-      final symptoms = await _dbHelper.getSymptomsForCycle(cycles.first.id!);
+      final symptoms =
+          await _dbHelper.getSymptomsForCycle(cycles.first.id!);
       final now = DateTime.now();
       try {
         todaysSymptom = symptoms.firstWhere(
-          (s) => s.date.year == now.year && s.date.month == now.month && s.date.day == now.day,
+          (s) =>
+              s.date.year == now.year &&
+              s.date.month == now.month &&
+              s.date.day == now.day,
         );
       } catch (_) {
         todaysSymptom = null;
@@ -90,10 +180,9 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
 
     Cycle? activeCycle;
     activeCycle = cycles.cast<Cycle?>().firstWhere(
-      (cycle) => cycle?.endDate == null,
-      orElse: () => null,
-    );
-
+          (cycle) => cycle?.endDate == null,
+          orElse: () => null,
+        );
 
     _currentCycle = activeCycle;
 
@@ -103,11 +192,18 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     }
 
     if (mounted) _animationController.forward();
-
     _checkIfPeriodIsDue();
 
-    return DashboardData(_currentCycle, settings, avgCycleLength, avgPeriodLength, todaysSymptom);
-    }
+    return DashboardData(
+      _currentCycle,
+      settings,
+      avgCycleLength,
+      avgPeriodLength,
+      todaysSymptom,
+      todayHydration,
+      cycles.length,
+    );
+  }
 
   Future<void> _refreshData() async {
     final data = await _loadInitialData();
@@ -118,28 +214,36 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     }
   }
 
-
   void _calculateCycleDay() {
     if (_currentCycle != null) {
-      final now = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
-      final startDate = DateTime(_currentCycle!.startDate.year, _currentCycle!.startDate.month, _currentCycle!.startDate.day);
+      final now = DateTime(
+          DateTime.now().year, DateTime.now().month, DateTime.now().day);
+      final startDate = DateTime(_currentCycle!.startDate.year,
+          _currentCycle!.startDate.month, _currentCycle!.startDate.day);
       _currentDayOfCycle = now.difference(startDate).inDays + 1;
     }
   }
 
-  // MODIFICATION CRITIQUE ICI: Ajout de la vérification isReady
+  // ═══════════════════════════════════════
+  // CYCLE PREDICTIONS & NOTIFICATIONS
+  // (logique 100% inchangée)
+  // ═══════════════════════════════════════
+
   Future<void> _updateCyclePredictions(AppSettings settings) async {
     final avgCycleLength = await _dbHelper.getAverageCycleLength();
 
     if (_currentCycle != null && _currentCycle!.endDate == null) {
-      final cycleLength = avgCycleLength?.round() ?? settings.defaultCycleLength;
+      final cycleLength =
+          avgCycleLength?.round() ?? settings.defaultCycleLength;
 
       DateTime? ovulationDate;
       if (cycleLength > 15) {
-        ovulationDate = _currentCycle!.startDate.add(Duration(days: cycleLength - 14));
+        ovulationDate =
+            _currentCycle!.startDate.add(Duration(days: cycleLength - 14));
       }
 
-      final expectedPeriod = _currentCycle!.startDate.add(Duration(days: cycleLength));
+      final expectedPeriod =
+          _currentCycle!.startDate.add(Duration(days: cycleLength));
 
       String phase = 'folliculaire';
       final now = DateTime.now();
@@ -153,7 +257,8 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
         );
         if (today.isAfter(periodEnd)) {
           if (ovulationDate != null) {
-            final ovulDay = DateTime(ovulationDate.year, ovulationDate.month, ovulationDate.day);
+            final ovulDay = DateTime(
+                ovulationDate.year, ovulationDate.month, ovulationDate.day);
             if (today.isAfter(ovulDay)) {
               phase = 'lutéale';
             } else if (today.isAtSameMomentAs(ovulDay)) {
@@ -183,17 +288,15 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       await _dbHelper.updateCycle(updatedCycle);
       _currentCycle = updatedCycle;
 
-      // Planification des notifications récursives
-      // VÉRIFICATION DE SÉCURITÉ: Appel uniquement si le service est prêt
       if (_notificationService.isReady) {
         await _notificationService.cancelAllNotifications();
 
-        // --- Notifications Ovulation (J-3, J-2, J-1, Jour J) ---
         if (settings.notifyOvulation && ovulationDate != null) {
           await _notificationService.scheduleNotification(
             id: 10,
             title: '🌸 Ovulation dans 3 jours',
-            body: 'Votre ovulation est prévue dans 3 jours. Votre fenêtre de fertilité approche.',
+            body:
+                'Votre ovulation est prévue dans 3 jours. Votre fenêtre de fertilité approche.',
             scheduledDate: ovulationDate.subtract(const Duration(days: 3)),
           );
           await _notificationService.scheduleNotification(
@@ -205,41 +308,48 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
           await _notificationService.scheduleNotification(
             id: 12,
             title: '🌸 Ovulation demain',
-            body: 'Votre ovulation est prévue demain. Début de votre pic de fertilité.',
+            body:
+                'Votre ovulation est prévue demain. Début de votre pic de fertilité.',
             scheduledDate: ovulationDate.subtract(const Duration(days: 1)),
           );
           await _notificationService.scheduleNotification(
             id: 13,
             title: '🌸 Jour d\'ovulation',
-            body: 'C\'est votre jour d\'ovulation prévu. Votre fertilité est à son maximum.',
+            body:
+                'C\'est votre jour d\'ovulation prévu. Votre fertilité est à son maximum.',
             scheduledDate: ovulationDate,
           );
         }
 
-        // --- Notifications Règles / Nouveau cycle (J-3, J-2, J-1, Jour J) ---
         if (settings.notifyPeriod) {
           await _notificationService.scheduleNotification(
             id: 20,
             title: '🔴 Règles dans 3 jours',
-            body: 'Vos prochaines règles sont prévues dans 3 jours. Pensez à vous préparer.',
-            scheduledDate: expectedPeriod.subtract(const Duration(days: 3)),
+            body:
+                'Vos prochaines règles sont prévues dans 3 jours. Pensez à vous préparer.',
+            scheduledDate:
+                expectedPeriod.subtract(const Duration(days: 3)),
           );
           await _notificationService.scheduleNotification(
             id: 21,
             title: '🔴 Règles dans 2 jours',
             body: 'Vos prochaines règles sont prévues dans 2 jours.',
-            scheduledDate: expectedPeriod.subtract(const Duration(days: 2)),
+            scheduledDate:
+                expectedPeriod.subtract(const Duration(days: 2)),
           );
           await _notificationService.scheduleNotification(
             id: 22,
             title: '🔴 Règles demain',
-            body: 'Vos prochaines règles sont prévues demain. Préparez-vous.',
-            scheduledDate: expectedPeriod.subtract(const Duration(days: 1)),
+            body:
+                'Vos prochaines règles sont prévues demain. Préparez-vous.',
+            scheduledDate:
+                expectedPeriod.subtract(const Duration(days: 1)),
           );
           await _notificationService.scheduleNotification(
             id: 23,
             title: '🔴 Début de cycle prévu',
-            body: 'Vos règles sont prévues pour aujourd\'hui. Un nouveau cycle peut commencer.',
+            body:
+                'Vos règles sont prévues pour aujourd\'hui. Un nouveau cycle peut commencer.',
             scheduledDate: expectedPeriod,
           );
         }
@@ -250,7 +360,8 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
   void _checkIfPeriodIsDue() {
     if (_currentCycle != null && _currentCycle!.expectedPeriod != null) {
       final now = DateTime.now();
-      final difference = _currentCycle!.expectedPeriod!.difference(now).inDays;
+      final difference =
+          _currentCycle!.expectedPeriod!.difference(now).inDays;
       if (difference <= 2 && difference >= -2) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) _showPeriodStartPrompt(context);
@@ -259,288 +370,720 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     }
   }
 
+  _PhaseConfig _getPhaseConfig() {
+    final phase = _currentCycle?.phase ?? '';
+    return _phaseConfigs[phase] ?? _defaultPhaseConfig;
+  }
+
+  String _getMoodEmoji(String? mood) {
+    const moods = {
+      'Heureuse': '😊',
+      'Triste': '😢',
+      'En colère': '😡',
+      'Anxieuse': '😰',
+      'Calme': '😌',
+      'Énergique': '⚡',
+    };
+    return moods[mood] ?? '🙂';
+  }
+
+  // ═══════════════════════════════
+  // BUILD
+  // ═══════════════════════════════
+
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<DashboardData>(
       future: _initialDataFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        } else if (snapshot.hasError) {
           return Scaffold(
-            body: Center(child: Text("Erreur de chargement: ${snapshot.error}")),
+            body: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 48,
+                    height: 48,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 3,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Chargement...',
+                    style: TextStyle(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withAlpha(150),
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           );
-        } else if (!snapshot.hasData) {
+        }
+        if (snapshot.hasError) {
+          return Scaffold(
+            body: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.error_outline_rounded,
+                        size: 48,
+                        color: Theme.of(context).colorScheme.error),
+                    const SizedBox(height: 16),
+                    Text(
+                      "Erreur de chargement",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      "${snapshot.error}",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withAlpha(150),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
+        if (!snapshot.hasData) {
           return const Scaffold(
             body: Center(child: Text("Aucune donnée disponible.")),
           );
-        } else {
-          final data = snapshot.data!;
-          return Scaffold(
-            body: _buildDashboardContent(data),
-            floatingActionButton: _buildFloatingActionButton(),
-          );
         }
+
+        final data = snapshot.data!;
+        return Scaffold(
+          body: _buildDashboardContent(data),
+          floatingActionButton: _buildFloatingActionButton(),
+        );
       },
     );
   }
 
-    Widget _buildDashboardContent(DashboardData data) {
+  // ═══════════════════════════════
+  // CONTENU PRINCIPAL
+  // ═══════════════════════════════
+
+  Widget _buildDashboardContent(DashboardData data) {
     return RefreshIndicator(
       onRefresh: _refreshData,
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 100.0),
-        children: [
-          _buildDueDateNotification(),
-          if (_currentCycle != null) _buildCycleInfoCard() else _buildNoCycleCard(),
-          const SizedBox(height: 24),
-          if (_currentCycle != null) _buildUpcomingDatesCard(),
-          const SizedBox(height: 24),
-          if (_currentCycle != null) _buildPhaseAdviceCard(),
-          const SizedBox(height: 24),
-          if (data.todaysSymptom != null) _buildTodaySymptomSummary(data.todaysSymptom!),
-          const SizedBox(height: 24),
-          if (data.avgCycleLength != null) _buildQuickStatsRow(data),
-          const SizedBox(height: 24),
-          _buildSectionHeader('Actions & Outils'),
-          const SizedBox(height: 12),
-          _buildFeatureTiles(),
+      color: Theme.of(context).colorScheme.primary,
+      child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
+        ),
+        slivers: [
+          // AppBar avec salutation
+          _buildSliverHeader(data),
+          // Contenu
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
+            sliver: SliverList(
+              delegate: SliverChildListDelegate([
+                // Alerte règles imminentes
+                _buildDueDateNotification(),
+                // Carte cycle principale
+                _buildAnimatedEntry(
+                  delay: 0,
+                  child: _currentCycle != null
+                      ? _buildCycleHeroCard()
+                      : _buildNoCycleCard(),
+                ),
+                const SizedBox(height: 20),
+                // Timeline / Phase actuelle
+                if (_currentCycle != null)
+                  _buildAnimatedEntry(
+                    delay: 1,
+                    child: _buildPhaseTimeline(),
+                  ),
+                if (_currentCycle != null) const SizedBox(height: 20),
+                // Prochaines étapes
+                if (_currentCycle != null)
+                  _buildAnimatedEntry(
+                    delay: 2,
+                    child: _buildUpcomingDatesCard(),
+                  ),
+                if (_currentCycle != null) const SizedBox(height: 20),
+                // Conseil bien-être
+                if (_currentCycle != null)
+                  _buildAnimatedEntry(
+                    delay: 3,
+                    child: _buildPhaseAdviceCard(),
+                  ),
+                if (_currentCycle != null) const SizedBox(height: 20),
+                // Résumé aujourd'hui (symptôme + hydratation)
+                _buildAnimatedEntry(
+                  delay: 4,
+                  child: _buildTodaySummaryRow(data),
+                ),
+                const SizedBox(height: 20),
+                // Stats rapides
+                if (data.avgCycleLength != null)
+                  _buildAnimatedEntry(
+                    delay: 5,
+                    child: _buildQuickStatsRow(data),
+                  ),
+                if (data.avgCycleLength != null)
+                  const SizedBox(height: 24),
+                // Section actions
+                _buildAnimatedEntry(
+                  delay: 6,
+                  child: _buildSectionHeader(
+                      'Actions & Outils', Icons.apps_rounded),
+                ),
+                const SizedBox(height: 12),
+                _buildAnimatedEntry(
+                  delay: 7,
+                  child: _buildFeatureGrid(),
+                ),
+              ]),
+            ),
+          ),
         ],
       ),
     );
+  }
+
+  // ═══════════════════════════════
+  // SLIVER HEADER
+  // ═══════════════════════════════
+
+  Widget _buildSliverHeader(DashboardData data) {
+    final cs = Theme.of(context).colorScheme;
+    final now = DateTime.now();
+    final greeting = now.hour < 12
+        ? 'Bonjour'
+        : now.hour < 18
+            ? 'Bon après-midi'
+            : 'Bonsoir';
+
+    return SliverToBoxAdapter(
+      child: FadeTransition(
+        opacity: _fadeAnimation,
+        child: Container(
+          padding: EdgeInsets.fromLTRB(
+            20,
+            MediaQuery.of(context).padding.top + 16,
+            20,
+            20,
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '$greeting 👋',
+                      style: TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.w800,
+                        color: cs.onSurface,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      DateFormat('EEEE d MMMM', 'fr_FR').format(now).capitalize(),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: cs.onSurface.withAlpha(140),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Badge cycle
+              if (_currentCycle != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: _getPhaseConfig().color.withAlpha(25),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: _getPhaseConfig().color.withAlpha(60),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _getPhaseConfig().emoji,
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'J$_currentDayOfCycle',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: _getPhaseConfig().color,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ═══════════════════════════════
+  // ANIMATION D'ENTRÉE
+  // ═══════════════════════════════
+
+  Widget _buildAnimatedEntry({required int delay, required Widget child}) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: Duration(milliseconds: 500 + (delay * 60)),
+      curve: Curves.easeOutCubic,
+      builder: (context, value, _) {
+        return Transform.translate(
+          offset: Offset(0, 20 * (1 - value)),
+          child: Opacity(
+            opacity: value.clamp(0.0, 1.0),
+            child: child,
+          ),
+        );
+      },
+    );
+  }
+
+  // ═══════════════════════════════
+  // HERO CARD – CYCLE ACTIF
+  // ═══════════════════════════════
+
+  Widget _buildCycleHeroCard() {
+    final cs = Theme.of(context).colorScheme;
+    final phaseConfig = _getPhaseConfig();
+
+    if (_currentDayOfCycle < 1) {
+      return _buildScheduledCycleCard();
     }
 
-    Widget _buildUpcomingDatesCard() {
-      final colorScheme = Theme.of(context).colorScheme;
-      if (_currentCycle == null) return const SizedBox.shrink();
+    final cycleLength = _currentCycle?.cycleLength ?? 28;
+    final progress = (_currentDayOfCycle / cycleLength).clamp(0.0, 1.0);
 
-      return Container(
-        padding: const EdgeInsets.all(20),
+    return GestureDetector(
+      onLongPress: () {
+        if (_currentCycle != null) {
+          _showDeleteCycleConfirmation(context, _currentCycle!);
+        }
+      },
+      child: Container(
         decoration: BoxDecoration(
-          color: colorScheme.surface,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: colorScheme.outlineVariant.withAlpha(80)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text("Prochaines étapes", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            const SizedBox(height: 16),
-            if (_currentCycle!.ovulationDate != null)
-              _buildUpcomingRow(
-                Icons.favorite_rounded,
-                "Ovulation prévue",
-                DateFormat('dd MMM', 'fr_FR').format(_currentCycle!.ovulationDate!),
-                Colors.pink,
-              ),
-            if (_currentCycle!.ovulationDate != null && _currentCycle!.expectedPeriod != null)
-              const Divider(height: 24, indent: 40),
-            if (_currentCycle!.expectedPeriod != null)
-              _buildUpcomingRow(
-                Icons.calendar_today_rounded,
-                "Prochain cycle",
-                DateFormat('dd MMM', 'fr_FR').format(_currentCycle!.expectedPeriod!),
-                Colors.red,
-              ),
+          gradient: LinearGradient(
+            colors: [
+              phaseConfig.color,
+              phaseConfig.color.withAlpha(180),
+              cs.primary.withAlpha(200),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(28),
+          boxShadow: [
+            BoxShadow(
+              color: phaseConfig.color.withAlpha(60),
+              blurRadius: 24,
+              offset: const Offset(0, 12),
+            ),
           ],
         ),
-      );
-    }
-
-    Widget _buildUpcomingRow(IconData icon, String title, String date, Color color) {
-      return Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: color.withAlpha(20), shape: BoxShape.circle),
-            child: Icon(icon, color: color, size: 18),
-          ),
-          const SizedBox(width: 12),
-          Text(title, style: const TextStyle(fontSize: 14)),
-          const Spacer(),
-          Text(date, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-        ],
-      );
-    }
-
-    Widget _buildTodaySymptomSummary(Symptom symptom) {
-      final colorScheme = Theme.of(context).colorScheme;
-      return Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: colorScheme.primaryContainer.withAlpha(40),
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: colorScheme.primary.withAlpha(40)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Text("Aujourd'hui", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                const Spacer(),
-                Icon(Icons.check_circle_rounded, color: colorScheme.primary, size: 18),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              "Humeur : ${symptom.mood ?? 'Non précisée'}",
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-            ),
-            if (symptom.notes != null && symptom.notes!.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Text(
-                symptom.notes!,
-                style: TextStyle(fontSize: 13, color: colorScheme.onSurfaceVariant, fontStyle: FontStyle.italic),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            children: [
+              // Cercle de progression
+              SizedBox(
+                width: 140,
+                height: 140,
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0.0, end: progress),
+                  duration: const Duration(milliseconds: 1200),
+                  curve: Curves.easeOutCubic,
+                  builder: (context, value, _) {
+                    return CustomPaint(
+                      painter: _CycleProgressPainter(
+                        progress: value,
+                        bgColor: Colors.white.withAlpha(40),
+                        progressColor: Colors.white,
+                        strokeWidth: 8,
+                      ),
+                      child: Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'JOUR',
+                              style: TextStyle(
+                                color: Colors.white.withAlpha(200),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 2,
+                              ),
+                            ),
+                            Text(
+                              '$_currentDayOfCycle',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 44,
+                                fontWeight: FontWeight.w800,
+                                height: 1.1,
+                              ),
+                            ),
+                            Text(
+                              'sur $cycleLength',
+                              style: TextStyle(
+                                color: Colors.white.withAlpha(180),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 20),
+              // Badge phase
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withAlpha(30),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.white.withAlpha(40)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(phaseConfig.emoji,
+                        style: const TextStyle(fontSize: 16)),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Phase ${phaseConfig.label}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Infos rapides
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white.withAlpha(18),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _buildHeroInfoItem(
+                        Icons.calendar_today_rounded,
+                        'Début',
+                        DateFormat('dd MMM', 'fr_FR')
+                            .format(_currentCycle!.startDate),
+                      ),
+                    ),
+                    Container(
+                      width: 1,
+                      height: 32,
+                      color: Colors.white.withAlpha(30),
+                    ),
+                    Expanded(
+                      child: _buildHeroInfoItem(
+                        Icons.favorite_rounded,
+                        'Ovulation',
+                        _currentCycle!.ovulationDate != null
+                            ? DateFormat('dd MMM', 'fr_FR')
+                                .format(_currentCycle!.ovulationDate!)
+                            : '—',
+                      ),
+                    ),
+                    Container(
+                      width: 1,
+                      height: 32,
+                      color: Colors.white.withAlpha(30),
+                    ),
+                    Expanded(
+                      child: _buildHeroInfoItem(
+                        Icons.event_rounded,
+                        'Fin prévue',
+                        _currentCycle!.expectedPeriod != null
+                            ? DateFormat('dd MMM', 'fr_FR')
+                                .format(_currentCycle!.expectedPeriod!)
+                            : '—',
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
-          ],
-        ),
-      );
-    }
-
-    Widget _buildSectionHeader(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 4),
-      child: Text(
-        title,
-        style: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.bold,
-          color: Theme.of(context).colorScheme.primary,
-          letterSpacing: 0.5,
+          ),
         ),
       ),
     );
-    }
+  }
 
-    Widget _buildQuickStatsRow(DashboardData data) {
-    return Row(
+  Widget _buildHeroInfoItem(IconData icon, String label, String value) {
+    return Column(
       children: [
-        Expanded(
-          child: _buildSmallStatCard(
-            'Cycle moyen',
-            '${data.avgCycleLength?.round() ?? "--"} j',
-            Icons.sync_rounded,
-            Colors.blue,
+        Icon(icon, color: Colors.white.withAlpha(180), size: 16),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: TextStyle(
+            color: Colors.white.withAlpha(160),
+            fontSize: 10,
+            fontWeight: FontWeight.w500,
           ),
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildSmallStatCard(
-            'Règles moyennes',
-            '${data.avgPeriodLength?.round() ?? "--"} j',
-            Icons.water_drop_rounded,
-            Colors.red,
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ],
     );
-    }
+  }
 
-    Widget _buildSmallStatCard(String label, String value, IconData icon, Color color) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: colorScheme.outlineVariant.withAlpha(80)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: color.withAlpha(26), borderRadius: BorderRadius.circular(10)),
-            child: Icon(icon, color: color, size: 18),
-          ),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold)),
-              Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-            ],
-          ),
-        ],
+  // Carte cycle programmé (futur)
+  Widget _buildScheduledCycleCard() {
+    final cs = Theme.of(context).colorScheme;
+    final daysUntilStart = -_currentDayOfCycle + 1;
+    final countdownText = daysUntilStart == 1
+        ? 'Commence demain'
+        : 'Commence dans $daysUntilStart jours';
+
+    return GestureDetector(
+      onLongPress: () =>
+          _showDeleteCycleConfirmation(context, _currentCycle!),
+      child: Container(
+        decoration: BoxDecoration(
+          color: cs.primaryContainer.withAlpha(80),
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(color: cs.primary.withAlpha(40)),
+        ),
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: cs.primary.withAlpha(20),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.schedule_rounded,
+                  color: cs.primary, size: 32),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Cycle Programmé',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: cs.primary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 20, vertical: 10),
+              decoration: BoxDecoration(
+                color: cs.primary,
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Text(
+                countdownText,
+                style: TextStyle(
+                  color: cs.onPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Début le ${DateFormat('d MMMM yyyy', 'fr_FR').format(_currentCycle!.startDate)}',
+              style: TextStyle(
+                color: cs.onSurface.withAlpha(160),
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
       ),
     );
-    }
+  }
 
-    Widget _buildPhaseAdviceCard() {
-    final colorScheme = Theme.of(context).colorScheme;
-    final phase = _currentCycle?.phase ?? 'inconnu';
-    String advice = "";
-    IconData icon = Icons.lightbulb_rounded;
-    Color color = Colors.amber;
+  // ═══════════════════════════════
+  // PHASE TIMELINE
+  // ═══════════════════════════════
 
-    switch (phase) {
-      case 'règles':
-        advice = "Privilégiez le repos et les aliments riches en fer comme les épinards ou les lentilles.";
-        icon = Icons.spa_rounded;
-        color = Colors.red;
-        break;
-      case 'folliculaire':
-        advice = "Votre énergie remonte ! C'est le moment idéal pour de nouveaux projets ou du sport intensif.";
-        icon = Icons.bolt_rounded;
-        color = Colors.orange;
-        break;
-      case 'ovulation':
-        advice = "Pic de libido et de confiance en soi. Votre peau est souvent plus éclatante aujourd'hui !";
-        icon = Icons.auto_awesome_rounded;
-        color = Colors.pink;
-        break;
-      case 'lutéale':
-        advice = "Réduisez le sel et la caféine pour limiter les ballonnements et l'irritabilité.";
-        icon = Icons.self_improvement_rounded;
-        color = Colors.purple;
-        break;
-      default:
-        advice = "Continuez à noter vos symptômes pour des conseils plus personnalisés.";
-    }
+  Widget _buildPhaseTimeline() {
+    final cs = Theme.of(context).colorScheme;
+    final phases = ['règles', 'folliculaire', 'ovulation', 'lutéale'];
+    final currentPhase = _currentCycle?.phase ?? '';
 
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: color.withAlpha(15),
+        color: cs.surfaceContainerLow,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: color.withAlpha(40)),
+        border: Border.all(color: cs.outlineVariant.withAlpha(60)),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: color, size: 28),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "Conseil bien-être",
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: color),
+          Row(
+            children: [
+              Icon(Icons.timeline_rounded,
+                  size: 18, color: cs.primary),
+              const SizedBox(width: 8),
+              Text(
+                'Progression du cycle',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: cs.onSurface,
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  advice,
-                  style: TextStyle(fontSize: 14, color: colorScheme.onSurface, height: 1.3),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: phases.asMap().entries.map((entry) {
+              final index = entry.key;
+              final phase = entry.value;
+              final config = _phaseConfigs[phase]!;
+              final isActive = phase == currentPhase;
+              final isPast =
+                  phases.indexOf(currentPhase) > index;
+
+              return Expanded(
+                child: Row(
+                  children: [
+                    if (index > 0)
+                      Expanded(
+                        child: Container(
+                          height: 3,
+                          decoration: BoxDecoration(
+                            color: isPast || isActive
+                                ? config.color.withAlpha(150)
+                                : cs.outlineVariant.withAlpha(60),
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                    Column(
+                      children: [
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 400),
+                          width: isActive ? 40 : 32,
+                          height: isActive ? 40 : 32,
+                          decoration: BoxDecoration(
+                            color: isActive
+                                ? config.color
+                                : isPast
+                                    ? config.color.withAlpha(40)
+                                    : cs.surfaceContainerHigh,
+                            shape: BoxShape.circle,
+                            border: isActive
+                                ? Border.all(
+                                    color: config.color.withAlpha(60),
+                                    width: 3,
+                                  )
+                                : null,
+                            boxShadow: isActive
+                                ? [
+                                    BoxShadow(
+                                      color:
+                                          config.color.withAlpha(50),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    )
+                                  ]
+                                : null,
+                          ),
+                          child: Center(
+                            child: Text(
+                              config.emoji,
+                              style: TextStyle(
+                                fontSize: isActive ? 18 : 14,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          config.label,
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: isActive
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                            color: isActive
+                                ? config.color
+                                : cs.onSurface.withAlpha(100),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              );
+            }).toList(),
           ),
         ],
       ),
     );
-    }
+  }
+
+  // ═══════════════════════════════
+  // NOTIFICATION ALERTE
+  // ═══════════════════════════════
 
   Widget _buildDueDateNotification() {
-    if (_currentCycle != null && _currentCycle!.expectedPeriod != null) {
+    if (_currentCycle != null &&
+        _currentCycle!.expectedPeriod != null) {
       final now = DateTime.now();
-      final difference = _currentCycle!.expectedPeriod!.difference(now).inDays;
+      final difference =
+          _currentCycle!.expectedPeriod!.difference(now).inDays;
 
       if (difference >= -2 && difference <= 2) {
+        final cs = Theme.of(context).colorScheme;
         String dayString = "imminentes";
         if (difference == 0) {
           dayString = "aujourd'hui";
@@ -550,28 +1093,58 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
           dayString = "dans $difference jours";
         }
 
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          margin: const EdgeInsets.only(bottom: 20),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.errorContainer.withAlpha(179),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Theme.of(context).colorScheme.error.withAlpha(51)),
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.warning_amber_rounded, color: Theme.of(context).colorScheme.error),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  "Prochaines règles attendues $dayString.",
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.onErrorContainer,
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 16),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  cs.errorContainer.withAlpha(200),
+                  cs.errorContainer.withAlpha(120),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: cs.error.withAlpha(40)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: cs.error.withAlpha(30),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.notifications_active_rounded,
+                      color: cs.error, size: 20),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Alerte cycle',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                          color: cs.error,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        "Prochaines règles attendues $dayString.",
+                        style: TextStyle(
+                          fontWeight: FontWeight.w500,
+                          color: cs.onErrorContainer,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       }
@@ -579,267 +1152,705 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     return const SizedBox.shrink();
   }
 
-  Widget _buildCycleInfoCard() {
-    final colorScheme = Theme.of(context).colorScheme;
-    String phaseInfo = _currentCycle?.phase?.capitalize() ?? 'N/A';
-    String ovulationDateInfo = _currentCycle?.ovulationDate != null
-        ? 'Ovulation estimée: ${DateFormat('dd/MM/yyyy', 'fr_FR').format(_currentCycle!.ovulationDate!)}'
-        : 'Cycle trop court pour estimer.';
+  // ═══════════════════════════════
+  // PROCHAINES ÉTAPES
+  // ═══════════════════════════════
 
-    if (_currentDayOfCycle < 1) {
-      final daysUntilStart = -_currentDayOfCycle + 1;
-      String countdownText = "Commence dans $daysUntilStart jours";
-      if (daysUntilStart == 1) {
-        countdownText = "Commence demain";
-      }
+  Widget _buildUpcomingDatesCard() {
+    final cs = Theme.of(context).colorScheme;
+    if (_currentCycle == null) return const SizedBox.shrink();
 
-      String expectedPeriodDate = _currentCycle?.expectedPeriod != null
-          ? DateFormat('d MMM yyyy', 'fr_FR').format(_currentCycle!.expectedPeriod!)
-          : 'N/A';
+    final items = <Widget>[];
 
-      return FadeTransition(
-        opacity: _fadeAnimation,
-        child: GestureDetector(
-          onLongPress: () => _showDeleteCycleConfirmation(context, _currentCycle!),
-          child: Card(
-            elevation: 0,
-            color: colorScheme.primaryContainer.withAlpha(77),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                children: [
-                  Text('Cycle Programmé', style: Theme.of(context).textTheme.titleMedium?.copyWith(color: colorScheme.primary)),
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: colorScheme.primary,
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    child: Text(countdownText, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                  ),
-                  const SizedBox(height: 16),
-                  Text('Début le ${DateFormat('d MMMM yyyy', 'fr_FR').format(_currentCycle!.startDate)}', style: Theme.of(context).textTheme.bodyLarge),
-                  const SizedBox(height: 24),
-                  const Divider(height: 1),
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _buildInfoSmall(Icons.calendar_today_rounded, 'Fin estimée', expectedPeriodDate),
-                      _buildInfoSmall(Icons.favorite_rounded, 'Fertilité', ovulationDateInfo.split(':').last.trim()),
-                    ],
-                  )
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
+    if (_currentCycle!.ovulationDate != null) {
+      final daysUntil = _currentCycle!.ovulationDate!
+          .difference(DateTime.now())
+          .inDays;
+      items.add(_buildUpcomingRow(
+        '🌸',
+        'Ovulation',
+        DateFormat('dd MMM', 'fr_FR')
+            .format(_currentCycle!.ovulationDate!),
+        daysUntil >= 0 ? 'dans $daysUntil j' : 'passée',
+        const Color(0xFFE91E63),
+      ));
+    }
+    if (_currentCycle!.expectedPeriod != null) {
+      final daysUntil = _currentCycle!.expectedPeriod!
+          .difference(DateTime.now())
+          .inDays;
+      if (items.isNotEmpty) items.add(const SizedBox(height: 12));
+      items.add(_buildUpcomingRow(
+        '📅',
+        'Prochain cycle',
+        DateFormat('dd MMM', 'fr_FR')
+            .format(_currentCycle!.expectedPeriod!),
+        daysUntil >= 0 ? 'dans $daysUntil j' : 'en retard',
+        const Color(0xFFE53935),
+      ));
     }
 
-    double progress = (_currentDayOfCycle / (_currentCycle?.cycleLength ?? 28)).clamp(0.0, 1.0);
+    if (items.isEmpty) return const SizedBox.shrink();
 
-    return FadeTransition(
-      opacity: _fadeAnimation,
-      child: GestureDetector(
-        onLongPress: () {
-          if (_currentCycle != null) {
-            _showDeleteCycleConfirmation(context, _currentCycle!);
-          }
-        },
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [colorScheme.primary, colorScheme.secondary],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(30),
-            boxShadow: [
-              BoxShadow(
-                color: colorScheme.primary.withAlpha(77),
-                blurRadius: 15,
-                offset: const Offset(0, 8),
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: cs.outlineVariant.withAlpha(60)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.event_note_rounded,
+                  size: 18, color: cs.primary),
+              const SizedBox(width: 8),
+              Text(
+                'Prochaines étapes',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                  color: cs.onSurface,
+                ),
               ),
             ],
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
+          const SizedBox(height: 16),
+          ...items,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUpcomingRow(
+    String emoji,
+    String title,
+    String date,
+    String countdown,
+    Color color,
+  ) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withAlpha(12),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withAlpha(30)),
+      ),
+      child: Row(
+        children: [
+          Text(emoji, style: const TextStyle(fontSize: 22)),
+          const SizedBox(width: 12),
+          Expanded(
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    SizedBox(
-                      width: 150,
-                      height: 150,
-                      child: CircularProgressIndicator(
-                        value: progress,
-                        strokeWidth: 8,
-                        backgroundColor: Colors.white24,
-                        valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    ),
-                    Column(
-                      children: [
-                        const Text('JOUR', style: TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w500)),
-                        Text('$_currentDayOfCycle', style: const TextStyle(color: Colors.white, fontSize: 48, fontWeight: FontWeight.bold)),
-                        const Text('du cycle', style: TextStyle(color: Colors.white70, fontSize: 14)),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white24,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    'Phase: $phaseInfo',
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: cs.onSurface,
                   ),
                 ),
-                const SizedBox(height: 16),
-                const Divider(color: Colors.white24),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.favorite_rounded, color: Colors.white70, size: 18),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        ovulationDateInfo,
-                        style: const TextStyle(color: Colors.white70, fontSize: 13),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ],
+                Text(
+                  date,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: cs.onSurface.withAlpha(140),
+                  ),
                 ),
               ],
             ),
           ),
-        ),
-      ),
-      );
-  }
-
-  Widget _buildInfoSmall(IconData icon, String label, String value) {
-    return Column(
-      children: [
-        Icon(icon, color: Theme.of(context).colorScheme.primary, size: 24),
-        const SizedBox(height: 4),
-        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-        Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-      ],
-    );
-  }
-
-  Widget _buildNoCycleCard() {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Card(
-      elevation: 0,
-      color: colorScheme.surfaceContainerHighest,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      child: Padding(
-        padding: const EdgeInsets.all(32.0),
-        child: Column(
-          children: [
-            Icon(Icons.calendar_today_rounded, size: 48, color: colorScheme.primary),
-            const SizedBox(height: 16),
-            const Text('Aucun cycle en cours', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            const Text('Appuyez sur le bouton + pour commencer votre suivi.', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFeatureTiles() {
-    return FadeTransition(
-      opacity: _fadeAnimation,
-      child: Column(
-        children: [
-          _buildFeatureTile(
-            icon: Icons.history_rounded,
-            title: 'Historique des cycles',
-            subtitle: 'Consultez vos cycles précédents.',
-            onTap: () => Navigator.push(context, slideTransition(const CycleHistoryScreen())),
-          ),
-          const SizedBox(height: 12),
-          _buildFeatureTile(
-            icon: Icons.edit_note_rounded,
-            title: 'Journal de symptômes',
-            subtitle: 'Douleurs, humeur, énergie...',
-            onTap: () {
-              if (_currentCycle != null && _currentCycle!.id != null) {
-                Navigator.push(context, slideTransition(SymptomScreen(cycleId: _currentCycle!.id!)));
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Veuillez d'abord démarrer un cycle.")));
-              }
-            },
-          ),
-          const SizedBox(height: 12),
-          _buildFeatureTile(
-            icon: Icons.water_drop_rounded,
-            title: 'Analyse de l\'hydratation',
-            subtitle: 'Suivez votre consommation d\'eau.',
-            onTap: () => Navigator.push(context, slideTransition(const HydrationScreen())),
-          ),
-          const SizedBox(height: 12),
-          _buildFeatureTile(
-            icon: Icons.bar_chart_rounded,
-            title: 'Statistiques et visualisations',
-            subtitle: 'Graphiques, heatmap et calendrier.',
-            onTap: () => Navigator.push(context, slideTransition(const StatsScreen())),
-          ),
-          const SizedBox(height: 12),
-          _buildFeatureTile(
-            icon: Icons.smart_toy_rounded,
-            title: 'Prédictions intelligentes',
-            subtitle: 'Algorithme adaptatif et ajustements.',
-            onTap: () => Navigator.push(context, slideTransition(const PredictionDetailsScreen())),
+          Container(
+            padding: const EdgeInsets.symmetric(
+                horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: color.withAlpha(20),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              countdown,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: color,
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildFeatureTile({required IconData icon, required String title, required String subtitle, required VoidCallback onTap}) {
-    final colorScheme = Theme.of(context).colorScheme;
+  // ═══════════════════════════════
+  // CONSEIL BIEN-ÊTRE
+  // ═══════════════════════════════
+
+  Widget _buildPhaseAdviceCard() {
+    final cs = Theme.of(context).colorScheme;
+    final config = _getPhaseConfig();
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: colorScheme.outlineVariant.withAlpha(128)),
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-        leading: Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: colorScheme.primary.withAlpha(26),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(icon, color: colorScheme.primary, size: 24),
+        gradient: LinearGradient(
+          colors: [
+            config.color.withAlpha(18),
+            config.color.withAlpha(8),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        subtitle: Text(subtitle, style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 13)),
-        trailing: Icon(Icons.chevron_right_rounded, color: colorScheme.outline),
-        onTap: onTap,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: config.color.withAlpha(35)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: config.color.withAlpha(25),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(config.icon, color: config.color, size: 22),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Conseil bien-être',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: config.color,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  config.advice,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: cs.onSurface.withAlpha(200),
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
+  // ═══════════════════════════════
+  // RÉSUMÉ AUJOURD'HUI
+  // ═══════════════════════════════
+
+  Widget _buildTodaySummaryRow(DashboardData data) {
+    return Row(
+      children: [
+        Expanded(child: _buildTodaySymptomCard(data.todaysSymptom)),
+        const SizedBox(width: 12),
+        Expanded(child: _buildTodayHydrationCard(data.todayHydration)),
+      ],
+    );
+  }
+
+  Widget _buildTodaySymptomCard(Symptom? symptom) {
+    final cs = Theme.of(context).colorScheme;
+    final hasMood = symptom?.mood != null;
+
+    return GestureDetector(
+      onTap: () {
+        if (_currentCycle != null && _currentCycle!.id != null) {
+          Navigator.push(
+            context,
+            slideTransition(
+                SymptomScreen(cycleId: _currentCycle!.id!)),
+          );
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        height: 120,
+        decoration: BoxDecoration(
+          color: hasMood
+              ? cs.primaryContainer.withAlpha(50)
+              : cs.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: hasMood
+                ? cs.primary.withAlpha(40)
+                : cs.outlineVariant.withAlpha(60),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(
+                  hasMood ? _getMoodEmoji(symptom!.mood) : '📝',
+                  style: const TextStyle(fontSize: 22),
+                ),
+                const Spacer(),
+                if (hasMood)
+                  Icon(Icons.check_circle_rounded,
+                      color: cs.primary, size: 16),
+              ],
+            ),
+            const Spacer(),
+            Text(
+              hasMood ? symptom!.mood! : 'Humeur',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: cs.onSurface,
+              ),
+            ),
+            Text(
+              hasMood ? "Aujourd'hui" : 'Non renseignée',
+              style: TextStyle(
+                fontSize: 11,
+                color: cs.onSurface.withAlpha(120),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTodayHydrationCard(double todayHydration) {
+    final cs = Theme.of(context).colorScheme;
+    final goalReached = todayHydration >= 2.0;
+    final progress = (todayHydration / 2.0).clamp(0.0, 1.0);
+
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        slideTransition(const HydrationScreen()),
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        height: 120,
+        decoration: BoxDecoration(
+          color: goalReached
+              ? const Color(0xFF4CAF50).withAlpha(20)
+              : cs.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: goalReached
+                ? const Color(0xFF4CAF50).withAlpha(40)
+                : cs.outlineVariant.withAlpha(60),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(
+                  goalReached ? '✅' : '💧',
+                  style: const TextStyle(fontSize: 22),
+                ),
+                const Spacer(),
+                SizedBox(
+                  width: 28,
+                  height: 28,
+                  child: CircularProgressIndicator(
+                    value: progress,
+                    strokeWidth: 3,
+                    backgroundColor: cs.outlineVariant.withAlpha(50),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      goalReached
+                          ? const Color(0xFF4CAF50)
+                          : const Color(0xFF2196F3),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const Spacer(),
+            Text(
+              '${todayHydration.toStringAsFixed(1)} L',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: cs.onSurface,
+              ),
+            ),
+            Text(
+              goalReached ? 'Objectif atteint !' : 'sur 2.0 L',
+              style: TextStyle(
+                fontSize: 11,
+                color: cs.onSurface.withAlpha(120),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ═══════════════════════════════
+  // QUICK STATS
+  // ═══════════════════════════════
+
+  Widget _buildQuickStatsRow(DashboardData data) {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildMiniStatCard(
+            '🔄',
+            'Cycle moyen',
+            '${data.avgCycleLength?.round() ?? "--"} j',
+            const Color(0xFF2196F3),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _buildMiniStatCard(
+            '🩸',
+            'Règles moy.',
+            '${data.avgPeriodLength?.round() ?? "--"} j',
+            const Color(0xFFE53935),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _buildMiniStatCard(
+            '📊',
+            'Total cycles',
+            '${data.totalCycles}',
+            const Color(0xFF7E57C2),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMiniStatCard(
+      String emoji, String label, String value, Color color) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: cs.outlineVariant.withAlpha(50)),
+      ),
+      child: Column(
+        children: [
+          Text(emoji, style: const TextStyle(fontSize: 20)),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+              color: cs.onSurface.withAlpha(120),
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ═══════════════════════════════
+  // SECTION HEADER
+  // ═══════════════════════════════
+
+  Widget _buildSectionHeader(String title, IconData icon) {
+    final cs = Theme.of(context).colorScheme;
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: cs.primary.withAlpha(20),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, size: 16, color: cs.primary),
+        ),
+        const SizedBox(width: 10),
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: cs.onSurface,
+            letterSpacing: -0.2,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ═══════════════════════════════
+  // FEATURE GRID
+  // ═══════════════════════════════
+
+  Widget _buildFeatureGrid() {
+    final features = [
+      _FeatureItem(
+        icon: Icons.history_rounded,
+        title: 'Historique',
+        subtitle: 'Cycles précédents',
+        color: const Color(0xFF5C6BC0),
+        onTap: () => Navigator.push(
+            context, slideTransition(const CycleHistoryScreen())),
+      ),
+      _FeatureItem(
+        icon: Icons.edit_note_rounded,
+        title: 'Symptômes',
+        subtitle: 'Journal quotidien',
+        color: const Color(0xFFEC407A),
+        onTap: () {
+          if (_currentCycle != null && _currentCycle!.id != null) {
+            Navigator.push(
+              context,
+              slideTransition(
+                  SymptomScreen(cycleId: _currentCycle!.id!)),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text(
+                    "Veuillez d'abord démarrer un cycle."),
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+            );
+          }
+        },
+      ),
+      _FeatureItem(
+        icon: Icons.water_drop_rounded,
+        title: 'Hydratation',
+        subtitle: 'Suivi de l\'eau',
+        color: const Color(0xFF29B6F6),
+        onTap: () => Navigator.push(
+            context, slideTransition(const HydrationScreen())),
+      ),
+      _FeatureItem(
+        icon: Icons.bar_chart_rounded,
+        title: 'Statistiques',
+        subtitle: 'Graphiques',
+        color: const Color(0xFF66BB6A),
+        onTap: () => Navigator.push(
+            context, slideTransition(const StatsScreen())),
+      ),
+      _FeatureItem(
+        icon: Icons.smart_toy_rounded,
+        title: 'Prédictions',
+        subtitle: 'IA adaptative',
+        color: const Color(0xFFAB47BC),
+        onTap: () => Navigator.push(
+            context,
+            slideTransition(const PredictionDetailsScreen())),
+      ),
+    ];
+
+    return Column(
+      children: features.asMap().entries.map((entry) {
+        final index = entry.key;
+        final feature = entry.value;
+        return TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0.0, end: 1.0),
+          duration: Duration(milliseconds: 400 + (index * 80)),
+          curve: Curves.easeOutCubic,
+          builder: (context, value, child) {
+            return Transform.translate(
+              offset: Offset(30 * (1 - value), 0),
+              child: Opacity(
+                opacity: value.clamp(0.0, 1.0),
+                child: child,
+              ),
+            );
+          },
+          child: _buildFeatureTile(feature),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildFeatureTile(_FeatureItem feature) {
+    final cs = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: feature.onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+                horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: cs.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(20),
+              border:
+                  Border.all(color: cs.outlineVariant.withAlpha(50)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: feature.color.withAlpha(20),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(feature.icon,
+                      color: feature.color, size: 22),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        feature.title,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                          color: cs.onSurface,
+                        ),
+                      ),
+                      Text(
+                        feature.subtitle,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: cs.onSurface.withAlpha(120),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: feature.color.withAlpha(12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.arrow_forward_ios_rounded,
+                      size: 12, color: feature.color),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ═══════════════════════════════
+  // NO CYCLE CARD
+  // ═══════════════════════════════
+
+  Widget _buildNoCycleCard() {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            cs.primaryContainer.withAlpha(60),
+            cs.secondaryContainer.withAlpha(40),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: cs.primary.withAlpha(30)),
+      ),
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: cs.primary.withAlpha(15),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.calendar_today_rounded,
+                size: 40, color: cs.primary),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            'Aucun cycle en cours',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: cs.onSurface,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Appuyez sur le bouton ci-dessous\npour commencer votre suivi.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: cs.onSurface.withAlpha(140),
+              fontSize: 14,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Container(
+            padding: const EdgeInsets.symmetric(
+                horizontal: 20, vertical: 10),
+            decoration: BoxDecoration(
+              color: cs.primary.withAlpha(15),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.touch_app_rounded,
+                    size: 18, color: cs.primary),
+                const SizedBox(width: 8),
+                Text(
+                  'Démarrer un cycle',
+                  style: TextStyle(
+                    color: cs.primary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ═══════════════════════════════
+  // FLOATING ACTION BUTTON
+  // ═══════════════════════════════
+
   Widget? _buildFloatingActionButton() {
-    bool isCycleActive = _currentCycle != null && _currentCycle!.endDate == null;
-    final colorScheme = Theme.of(context).colorScheme;
+    final cs = Theme.of(context).colorScheme;
+    bool isCycleActive =
+        _currentCycle != null && _currentCycle!.endDate == null;
 
     if (!isCycleActive) {
       return FloatingActionButton.extended(
@@ -849,10 +1860,16 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
             await _startNewCycle(startDate: newStartDate);
           }
         },
-        label: const Text('Démarrer un cycle'),
+        label: const Text(
+          'Démarrer un cycle',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
         icon: const Icon(Icons.add_rounded),
-        backgroundColor: colorScheme.primary,
-        foregroundColor: colorScheme.onPrimary,
+        backgroundColor: cs.primary,
+        foregroundColor: cs.onPrimary,
+        elevation: 4,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
       );
     }
 
@@ -867,65 +1884,114 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
             padding: const EdgeInsets.only(bottom: 12.0),
             child: FloatingActionButton.extended(
               onPressed: _endPeriod,
-              label: const Text('Fin des règles'),
+              label: const Text(
+                'Fin des règles',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
               icon: const Icon(Icons.check_rounded),
-              backgroundColor: colorScheme.secondaryContainer,
-              foregroundColor: colorScheme.onSecondaryContainer,
+              backgroundColor: cs.secondaryContainer,
+              foregroundColor: cs.onSecondaryContainer,
               heroTag: 'endPeriod',
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20)),
             ),
           ),
         FloatingActionButton(
           onPressed: () => _showEndCycleConfirmation(context),
-          backgroundColor: colorScheme.errorContainer,
-          foregroundColor: colorScheme.onErrorContainer,
+          backgroundColor: cs.errorContainer,
+          foregroundColor: cs.onErrorContainer,
           elevation: 2,
-          child: const Icon(Icons.stop_rounded),
           tooltip: 'Terminer le cycle actuel',
           heroTag: 'endCycle',
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16)),
+          child: const Icon(Icons.stop_rounded),
         ),
       ],
     );
   }
 
+  // ═══════════════════════════════════════
+  // DIALOGS (logique 100% inchangée)
+  // ═══════════════════════════════════════
+
   Future<DateTime?> _showStartCycleDialog(BuildContext context) {
     DateTime selectedDate = DateTime.now();
+    final cs = Theme.of(context).colorScheme;
 
     return showDialog<DateTime>(
       context: context,
       builder: (BuildContext dialogContext) {
         return AlertDialog(
-          title: const Text('Démarrer un nouveau cycle'),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24)),
+          title: Row(
+            children: [
+              Icon(Icons.calendar_month_rounded,
+                  color: cs.primary, size: 24),
+              const SizedBox(width: 10),
+              const Text('Nouveau cycle',
+                  style: TextStyle(fontWeight: FontWeight.w700)),
+            ],
+          ),
           content: StatefulBuilder(
             builder: (BuildContext context, StateSetter setState) {
               return Column(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  const Text("Quelle est la date de début de vos règles ?", textAlign: TextAlign.center),
+                  Text(
+                    "Quelle est la date de début de vos règles ?",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: cs.onSurface.withAlpha(180),
+                      fontSize: 14,
+                    ),
+                  ),
                   const SizedBox(height: 24),
                   InkWell(
                     onTap: () async {
                       final DateTime? picked = await showDatePicker(
                         context: context,
                         initialDate: selectedDate,
-                        firstDate: DateTime(DateTime.now().year - 5),
-                        lastDate: DateTime(DateTime.now().year + 5),
+                        firstDate:
+                            DateTime(DateTime.now().year - 5),
+                        lastDate:
+                            DateTime(DateTime.now().year + 5),
                       );
-                      if (picked != null && picked != selectedDate) {
+                      if (picked != null &&
+                          picked != selectedDate) {
                         setState(() {
                           selectedDate = picked;
                         });
                       }
                     },
-                    child: InputDecorator(
-                      decoration: const InputDecoration(
-                        labelText: 'Date de début',
-                        border: OutlineInputBorder(),
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 14),
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                            color: cs.outlineVariant),
+                        borderRadius: BorderRadius.circular(16),
                       ),
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: <Widget>[
-                          Text(DateFormat('dd/MM/yyyy').format(selectedDate)),
-                          const Icon(Icons.calendar_today),
+                        children: [
+                          Icon(Icons.calendar_today_rounded,
+                              color: cs.primary, size: 20),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              DateFormat('dd MMMM yyyy', 'fr_FR')
+                                  .format(selectedDate),
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          Icon(Icons.edit_calendar_rounded,
+                              color: cs.primary, size: 20),
                         ],
                       ),
                     ),
@@ -935,10 +2001,19 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
             },
           ),
           actions: <Widget>[
-            TextButton(child: const Text('Annuler'), onPressed: () => Navigator.of(dialogContext).pop()),
-            ElevatedButton(
+            TextButton(
+              child: Text('Annuler',
+                  style: TextStyle(color: cs.onSurface.withAlpha(160))),
+              onPressed: () => Navigator.of(dialogContext).pop(),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
               child: const Text('Enregistrer'),
-              onPressed: () => Navigator.of(dialogContext).pop(selectedDate),
+              onPressed: () =>
+                  Navigator.of(dialogContext).pop(selectedDate),
             ),
           ],
         );
@@ -947,28 +2022,47 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
   }
 
   void _showPeriodStartPrompt(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) {
         return AlertDialog(
-          title: const Text('Nouveau cycle ?'),
-          content: const Text('Vos règles ont-elles commencé ?'),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24)),
+          title: Row(
+            children: [
+              const Text('🩸', style: TextStyle(fontSize: 22)),
+              const SizedBox(width: 10),
+              const Text('Nouveau cycle ?',
+                  style: TextStyle(fontWeight: FontWeight.w700)),
+            ],
+          ),
+          content: Text(
+            'Vos règles ont-elles commencé ?',
+            style: TextStyle(color: cs.onSurface.withAlpha(180)),
+          ),
           actions: <Widget>[
             TextButton(
-              child: const Text('Pas encore'),
+              child: Text('Pas encore',
+                  style: TextStyle(color: cs.onSurface.withAlpha(160))),
               onPressed: () => Navigator.of(dialogContext).pop(),
             ),
             TextButton(
               child: const Text('Choisir une date'),
               onPressed: () async {
                 Navigator.of(dialogContext).pop();
-                final newStartDate = await _showStartCycleDialog(context);
+                final newStartDate =
+                    await _showStartCycleDialog(context);
                 if (newStartDate != null) {
                   await _startNewCycle(startDate: newStartDate);
                 }
               },
             ),
-            ElevatedButton(
+            FilledButton(
+              style: FilledButton.styleFrom(
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
               child: const Text('Oui, aujourd\'hui'),
               onPressed: () async {
                 Navigator.of(dialogContext).pop();
@@ -983,7 +2077,8 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
 
   Future<void> _startNewCycle({required DateTime startDate}) async {
     if (_currentCycle != null && _currentCycle!.endDate == null) {
-      await _endCycle(isNewCycleStarting: true, newCycleStartDate: startDate);
+      await _endCycle(
+          isNewCycleStarting: true, newCycleStartDate: startDate);
     }
 
     final settings = await _dbHelper.getSettings();
@@ -991,10 +2086,12 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
 
     DateTime? ovulationDate;
     if (cycleLength > 15) {
-      ovulationDate = startDate.add(Duration(days: cycleLength - 14));
+      ovulationDate =
+          startDate.add(Duration(days: cycleLength - 14));
     }
 
-    final expectedPeriod = startDate.add(Duration(days: cycleLength));
+    final expectedPeriod =
+        startDate.add(Duration(days: cycleLength));
 
     final newCycle = Cycle(
       startDate: startDate,
@@ -1008,10 +2105,15 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     await _refreshData();
   }
 
-  Future<void> _endCycle({bool isNewCycleStarting = false, DateTime? newCycleStartDate}) async {
+  Future<void> _endCycle(
+      {bool isNewCycleStarting = false,
+      DateTime? newCycleStartDate}) async {
     if (_currentCycle != null) {
-      final cycleEndDate = newCycleStartDate != null ? newCycleStartDate.subtract(const Duration(days: 1)) : DateTime.now();
-      final cycleLength = cycleEndDate.difference(_currentCycle!.startDate).inDays + 1;
+      final cycleEndDate = newCycleStartDate != null
+          ? newCycleStartDate.subtract(const Duration(days: 1))
+          : DateTime.now();
+      final cycleLength =
+          cycleEndDate.difference(_currentCycle!.startDate).inDays + 1;
 
       final endedCycle = Cycle(
         id: _currentCycle!.id,
@@ -1049,20 +2151,40 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     }
   }
 
-  void _showDeleteCycleConfirmation(BuildContext context, Cycle cycle) {
+  void _showDeleteCycleConfirmation(
+      BuildContext context, Cycle cycle) {
+    final cs = Theme.of(context).colorScheme;
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) {
         return AlertDialog(
-          title: const Text('Supprimer ce cycle ?'),
-          content: const Text('Cette action est irréversible et supprimera toutes les données associées.'),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24)),
+          title: Row(
+            children: [
+              Icon(Icons.delete_outline_rounded,
+                  color: cs.error, size: 24),
+              const SizedBox(width: 10),
+              const Text('Supprimer ce cycle ?',
+                  style: TextStyle(fontWeight: FontWeight.w700)),
+            ],
+          ),
+          content: Text(
+            'Cette action est irréversible et supprimera toutes les données associées.',
+            style: TextStyle(color: cs.onSurface.withAlpha(180)),
+          ),
           actions: <Widget>[
             TextButton(
               child: const Text('Annuler'),
               onPressed: () => Navigator.of(dialogContext).pop(),
             ),
-            TextButton(
-              child: const Text('Supprimer', style: TextStyle(color: Colors.red)),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: cs.error,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text('Supprimer'),
               onPressed: () async {
                 await _dbHelper.deleteCycle(cycle.id!);
                 Navigator.of(dialogContext).pop();
@@ -1076,20 +2198,42 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
   }
 
   void _showEndCycleConfirmation(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Terminer le cycle'),
-          content: const Text('Voulez-vous vraiment terminer le cycle actuel ?'),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24)),
+          title: Row(
+            children: [
+              Icon(Icons.stop_circle_rounded,
+                  color: cs.error, size: 24),
+              const SizedBox(width: 10),
+              const Text('Terminer le cycle',
+                  style: TextStyle(fontWeight: FontWeight.w700)),
+            ],
+          ),
+          content: Text(
+            'Voulez-vous vraiment terminer le cycle actuel ?',
+            style: TextStyle(color: cs.onSurface.withAlpha(180)),
+          ),
           actions: <Widget>[
-            TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Annuler')),
             TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Annuler'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: cs.error,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
               onPressed: () async {
                 Navigator.of(context).pop();
                 await _endCycle();
               },
-              child: const Text('Terminer', style: TextStyle(color: Colors.red)),
+              child: const Text('Terminer'),
             ),
           ],
         );
@@ -1098,3 +2242,87 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
   }
 }
 
+// ═══════════════════════════════
+// CYCLE PROGRESS PAINTER
+// ═══════════════════════════════
+
+class _CycleProgressPainter extends CustomPainter {
+  final double progress;
+  final Color bgColor;
+  final Color progressColor;
+  final double strokeWidth;
+
+  _CycleProgressPainter({
+    required this.progress,
+    required this.bgColor,
+    required this.progressColor,
+    required this.strokeWidth,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = (size.width - strokeWidth) / 2;
+
+    // Background arc
+    final bgPaint = Paint()
+      ..color = bgColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawCircle(center, radius, bgPaint);
+
+    // Progress arc
+    final progressPaint = Paint()
+      ..color = progressColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      -math.pi / 2,
+      2 * math.pi * progress,
+      false,
+      progressPaint,
+    );
+
+    // Small dot at the end
+    if (progress > 0.02) {
+      final dotAngle = -math.pi / 2 + 2 * math.pi * progress;
+      final dotCenter = Offset(
+        center.dx + radius * math.cos(dotAngle),
+        center.dy + radius * math.sin(dotAngle),
+      );
+      final dotPaint = Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.fill;
+      canvas.drawCircle(dotCenter, strokeWidth * 0.7, dotPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _CycleProgressPainter oldDelegate) =>
+      oldDelegate.progress != progress;
+}
+
+// ═══════════════════════════════
+// FEATURE ITEM MODEL
+// ═══════════════════════════════
+
+class _FeatureItem {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _FeatureItem({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.color,
+    required this.onTap,
+  });
+}

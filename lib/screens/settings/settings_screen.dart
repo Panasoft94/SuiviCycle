@@ -1,5 +1,6 @@
 import '../user_account/create_pin.dart';
 import '../user_account/user_account_screen.dart';
+import '../user_account/change_pin_screen.dart';
 import 'package:flutter/material.dart';
 import '../../database/database_helper.dart';
 import '../../models/cycle.dart';
@@ -21,11 +22,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final BackupService _backupService = BackupService(); 
   final NotificationService _notificationService = NotificationService();
   late Future<AppSettings> _settingsFuture;
+  bool _biometricEnabled = false;
+  bool _loadingBiometric = true;
+  bool _hasUser = false;
 
   @override
   void initState() {
     super.initState();
     _settingsFuture = _dbHelper.getSettings();
+    _loadSecurityState();
+  }
+
+  Future<void> _loadSecurityState() async {
+    final user = await _dbHelper.getUser();
+    if (mounted) {
+      setState(() {
+        _hasUser = user != null;
+        _biometricEnabled = user != null && user['access_empreinte'] == 1;
+        _loadingBiometric = false;
+      });
+    }
   }
 
   void _updateSettings(AppSettings settings) async {
@@ -149,44 +165,79 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _buildSectionHeader('Notifications'),
             _buildSettingsCard([
               _buildNotificationTile('Notifications des règles', settings.notifyPeriod, (value) {
-                _updateSettings(AppSettings(
-                  id: settings.id,
-                  defaultCycleLength: settings.defaultCycleLength,
-                  notifyPeriod: value,
-                  notifyOvulation: settings.notifyOvulation,
-                  theme: settings.theme,
-                ));
+                _updateSettings(settings.copyWith(notifyPeriod: value));
               }),
               const Divider(indent: 70, height: 1),
               _buildNotificationTile('Notifications d\'ovulation', settings.notifyOvulation, (value) {
-                _updateSettings(AppSettings(
-                  id: settings.id,
-                  defaultCycleLength: settings.defaultCycleLength,
-                  notifyPeriod: settings.notifyPeriod,
-                  notifyOvulation: value,
-                  theme: settings.theme,
-                ));
+                _updateSettings(settings.copyWith(notifyOvulation: value));
               }),
             ]),
             const SizedBox(height: 24),
             
             _buildSectionHeader('Sécurité'),
             _buildSettingsCard([
+              // Mon compte / Créer un PIN
               ListTile(
-                leading: _buildIconContainer(Icons.security_rounded, Colors.green),
-                title: const Text('Confidentialité', style: TextStyle(fontWeight: FontWeight.w500)),
-                subtitle: const Text('PIN & Biométrie'),
+                leading: _buildIconContainer(Icons.person_rounded, Colors.indigo),
+                title: Text(_hasUser ? 'Mon compte' : 'Créer un code PIN', style: const TextStyle(fontWeight: FontWeight.w500)),
+                subtitle: Text(_hasUser ? 'Profil et informations' : 'Protégez vos données'),
                 trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: () async {
-                  final bool userExists = await _dbHelper.hasUser();
-                  if (!mounted) return;
-                  if (userExists) {
-                    Navigator.push(context, slideTransition(const UserAccountScreen()));
+                  if (_hasUser) {
+                    await Navigator.push(context, slideTransition(const UserAccountScreen()));
                   } else {
-                    Navigator.push(context, slideTransition(const CreatePinPage()));
+                    await Navigator.push(context, slideTransition(const CreatePinPage()));
                   }
+                  _loadSecurityState();
                 },
               ),
+              if (_hasUser) ...[
+                const Divider(indent: 70, height: 1),
+                // Modifier le code PIN
+                ListTile(
+                  leading: _buildIconContainer(Icons.lock_rounded, Colors.orange),
+                  title: const Text('Modifier le code PIN', style: TextStyle(fontWeight: FontWeight.w500)),
+                  subtitle: const Text('Changer votre code à 4 chiffres'),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () {
+                    Navigator.push(context, slideTransition(const ChangePinScreen()));
+                  },
+                ),
+                const Divider(indent: 70, height: 1),
+                // Empreinte biométrique (toggle direct)
+                if (!_loadingBiometric)
+                  SwitchListTile(
+                    secondary: _buildIconContainer(Icons.fingerprint_rounded, Colors.teal),
+                    title: const Text('Empreinte biométrique', style: TextStyle(fontWeight: FontWeight.w500)),
+                    subtitle: const Text('Déverrouiller avec empreinte ou visage'),
+                    value: _biometricEnabled,
+                    onChanged: (value) async {
+                      setState(() => _biometricEnabled = value);
+                      await _dbHelper.updateUser({'access_empreinte': value ? 1 : 0});
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Biométrie ${value ? "activée" : "désactivée"}.'),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      }
+                    },
+                  ),
+                const Divider(indent: 70, height: 1),
+                // Verrouillage automatique (toggle)
+                SwitchListTile(
+                  secondary: _buildIconContainer(Icons.lock_clock_rounded, Colors.deepPurple),
+                  title: const Text('Verrouillage automatique', style: TextStyle(fontWeight: FontWeight.w500)),
+                  subtitle: const Text('Verrouiller en arrière-plan'),
+                  value: settings.autoLock,
+                  onChanged: (value) {
+                    _updateSettings(settings.copyWith(autoLock: value));
+                    // Notifier main.dart pour mettre à jour le cache immédiatement
+                    MyApp.of(context).updateAutoLockState(value);
+                  },
+                ),
+              ],
             ]),
             const SizedBox(height: 24),
 
@@ -319,13 +370,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       onTap: () async {
         final newLength = await _showCycleLengthPicker(context, settings.defaultCycleLength);
         if (newLength != null && newLength != settings.defaultCycleLength) {
-          _updateSettings(AppSettings(
-            id: settings.id,
-            defaultCycleLength: newLength,
-            notifyPeriod: settings.notifyPeriod,
-            notifyOvulation: settings.notifyOvulation,
-            theme: settings.theme,
-          ));
+          _updateSettings(settings.copyWith(defaultCycleLength: newLength));
         }
       },
     );
@@ -349,13 +394,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       trailing: const Icon(Icons.chevron_right_rounded),
       onTap: () {
         final newTheme = settings.theme == 'light' ? 'dark' : 'light';
-        _updateSettings(AppSettings(
-          id: settings.id,
-          defaultCycleLength: settings.defaultCycleLength,
-          notifyPeriod: settings.notifyPeriod,
-          notifyOvulation: settings.notifyOvulation,
-          theme: newTheme,
-        ));
+        _updateSettings(settings.copyWith(theme: newTheme));
         MyApp.of(context).changeTheme(newTheme == 'dark' ? ThemeMode.dark : ThemeMode.light);
       },
     );
