@@ -43,8 +43,8 @@ class _CycleHistoryScreenState extends State<CycleHistoryScreen>
   Future<_HistoryData> _fetchHistoryData() async {
     final cycles = await _dbHelper.getCycles();
     final avgLength = await _dbHelper.getAverageCycleLength();
-    final completed =
-        cycles.where((c) => c.cycleLength != null && c.cycleLength! > 0).length;
+    // Un cycle est "terminé" quand il a une date de fin (endDate != null)
+    final completed = cycles.where((c) => c.endDate != null).length;
     final ongoing = cycles.where((c) => c.endDate == null).length;
 
     return _HistoryData(
@@ -606,13 +606,20 @@ class _CycleHistoryScreenState extends State<CycleHistoryScreen>
     final isOngoing = cycle.endDate == null;
     final startDate =
         DateFormat('EEEE d MMMM yyyy', 'fr_FR').format(cycle.startDate);
-    final daysSinceStart = DateTime.now().difference(cycle.startDate).inDays;
 
-    // Calcul de la durée des règles
+    // Normaliser à minuit pour un calcul exact (Jour 1 = même jour)
+    final now = DateTime.now();
+    final todayNorm = DateTime(now.year, now.month, now.day);
+    final startNorm = DateTime(
+        cycle.startDate.year, cycle.startDate.month, cycle.startDate.day);
+    final daysSinceStart = todayNorm.difference(startNorm).inDays + 1;
+
+    // Calcul de la durée des règles (normalisé à minuit)
     int? periodDays;
     if (cycle.periodEndDate != null) {
-      periodDays =
-          cycle.periodEndDate!.difference(cycle.startDate).inDays + 1;
+      final periodEndNorm = DateTime(cycle.periodEndDate!.year,
+          cycle.periodEndDate!.month, cycle.periodEndDate!.day);
+      periodDays = periodEndNorm.difference(startNorm).inDays + 1;
     }
 
     HapticFeedback.lightImpact();
@@ -890,8 +897,12 @@ class _CycleHistoryScreenState extends State<CycleHistoryScreen>
   }
 
   Widget _ongoingInfoBar(Cycle cycle, ColorScheme cs) {
-    final daysSinceStart =
-        DateTime.now().difference(cycle.startDate).inDays;
+    // Normaliser à minuit pour un calcul exact du jour courant (Jour 1)
+    final now = DateTime.now();
+    final todayNorm = DateTime(now.year, now.month, now.day);
+    final startNorm = DateTime(
+        cycle.startDate.year, cycle.startDate.month, cycle.startDate.day);
+    final daysSinceStart = todayNorm.difference(startNorm).inDays + 1;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
@@ -1137,8 +1148,13 @@ class _CycleCardState extends State<_CycleCard>
     final cycle = widget.cycle;
     final isOngoing = cycle.endDate == null;
     final startDate = DateFormat('d MMM', 'fr_FR').format(cycle.startDate);
-    final daysSinceStart =
-        DateTime.now().difference(cycle.startDate).inDays;
+
+    // Normaliser à minuit pour un calcul exact du jour courant (Jour 1)
+    final now = DateTime.now();
+    final todayNorm = DateTime(now.year, now.month, now.day);
+    final startNorm = DateTime(
+        cycle.startDate.year, cycle.startDate.month, cycle.startDate.day);
+    final daysSinceStart = todayNorm.difference(startNorm).inDays + 1;
 
     String endInfo;
     if (isOngoing) {

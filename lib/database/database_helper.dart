@@ -192,7 +192,26 @@ class DatabaseHelper {
   
   Future<double?> getAverageCycleLength() async {
     final db = await database;
-    final result = await db.rawQuery('SELECT AVG(cycle_length) as avg FROM cycles WHERE cycle_length IS NOT NULL AND cycle_length > 0');
+    // Recalculer les durées à partir des dates de début consécutives (normalisées à minuit)
+    // pour éviter les erreurs dues aux valeurs cycle_length stockées incorrectement
+    final cycles = await db.query('cycles', orderBy: 'start_date ASC');
+    if (cycles.length >= 2) {
+      final lengths = <int>[];
+      for (int i = 1; i < cycles.length; i++) {
+        final prev = DateTime.parse(cycles[i - 1]['start_date'] as String);
+        final curr = DateTime.parse(cycles[i]['start_date'] as String);
+        final prevNorm = DateTime(prev.year, prev.month, prev.day);
+        final currNorm = DateTime(curr.year, curr.month, curr.day);
+        final diff = currNorm.difference(prevNorm).inDays;
+        if (diff >= 21 && diff <= 45) lengths.add(diff);
+      }
+      if (lengths.isNotEmpty) {
+        return lengths.reduce((a, b) => a + b) / lengths.length;
+      }
+    }
+    // Fallback sur cycle_length stocké si pas assez de cycles consécutifs valides
+    final result = await db.rawQuery(
+        'SELECT AVG(cycle_length) as avg FROM cycles WHERE cycle_length IS NOT NULL AND cycle_length > 0');
     return result.first['avg'] as double?;
   }
 

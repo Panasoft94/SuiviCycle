@@ -233,8 +233,39 @@ class _DashboardScreenState extends State<DashboardScreen>
     final avgCycleLength = await _dbHelper.getAverageCycleLength();
 
     if (_currentCycle != null && _currentCycle!.endDate == null) {
-      final cycleLength =
-          avgCycleLength?.round() ?? settings.defaultCycleLength;
+      // Calcul robuste : on utilise les écarts réels entre dates de début
+      // de cycles consécutifs (indépendant des valeurs stockées en DB qui
+      // peuvent être incorrectes à cause du bug Jour0).
+      int cycleLength = avgCycleLength?.round() ?? settings.defaultCycleLength;
+      try {
+        final allCycles = await _dbHelper.getCycles();
+        // Trier par date de début croissante
+        allCycles.sort((a, b) => a.startDate.compareTo(b.startDate));
+        if (allCycles.length >= 2) {
+          final lengths = <int>[];
+          for (int i = 0; i < allCycles.length - 1; i++) {
+            final s = DateTime(
+              allCycles[i].startDate.year,
+              allCycles[i].startDate.month,
+              allCycles[i].startDate.day,
+            );
+            final n = DateTime(
+              allCycles[i + 1].startDate.year,
+              allCycles[i + 1].startDate.month,
+              allCycles[i + 1].startDate.day,
+            );
+            final diff = n.difference(s).inDays;
+            // Filtrer les valeurs aberrantes (< 15 ou > 60 jours)
+            if (diff >= 15 && diff <= 60) lengths.add(diff);
+          }
+          if (lengths.isNotEmpty) {
+            final sumLengths = lengths.reduce((a, b) => a + b);
+            cycleLength = (sumLengths / lengths.length).round();
+          }
+        }
+      } catch (_) {
+        // En cas d'erreur, on garde la valeur déjà calculée
+      }
 
       DateTime? ovulationDate;
       if (cycleLength > 15) {
@@ -2066,7 +2097,9 @@ class _DashboardScreenState extends State<DashboardScreen>
               child: const Text('Oui, aujourd\'hui'),
               onPressed: () async {
                 Navigator.of(dialogContext).pop();
-                await _startNewCycle(startDate: DateTime.now());
+                final now = DateTime.now();
+                await _startNewCycle(
+                    startDate: DateTime(now.year, now.month, now.day));
               },
             ),
           ],
@@ -2076,9 +2109,13 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   Future<void> _startNewCycle({required DateTime startDate}) async {
+    // Normaliser à minuit pour éviter les décalages d'heure (bug Jour0)
+    final normalizedStart =
+        DateTime(startDate.year, startDate.month, startDate.day);
+
     if (_currentCycle != null && _currentCycle!.endDate == null) {
       await _endCycle(
-          isNewCycleStarting: true, newCycleStartDate: startDate);
+          isNewCycleStarting: true, newCycleStartDate: normalizedStart);
     }
 
     final settings = await _dbHelper.getSettings();
@@ -2087,14 +2124,14 @@ class _DashboardScreenState extends State<DashboardScreen>
     DateTime? ovulationDate;
     if (cycleLength > 15) {
       ovulationDate =
-          startDate.add(Duration(days: cycleLength - 14));
+          normalizedStart.add(Duration(days: cycleLength - 14));
     }
 
     final expectedPeriod =
-        startDate.add(Duration(days: cycleLength));
+        normalizedStart.add(Duration(days: cycleLength));
 
     final newCycle = Cycle(
-      startDate: startDate,
+      startDate: normalizedStart,
       phase: 'règles',
       cycleLength: cycleLength,
       ovulationDate: ovulationDate,
@@ -2109,11 +2146,25 @@ class _DashboardScreenState extends State<DashboardScreen>
       {bool isNewCycleStarting = false,
       DateTime? newCycleStartDate}) async {
     if (_currentCycle != null) {
-      final cycleEndDate = newCycleStartDate != null
-          ? newCycleStartDate.subtract(const Duration(days: 1))
-          : DateTime.now();
+      // Normaliser les deux dates à minuit pour un calcul de durée exact (Jour1, pas Jour0)
+      final startDateNorm = DateTime(
+        _currentCycle!.startDate.year,
+        _currentCycle!.startDate.month,
+        _currentCycle!.startDate.day,
+      );
+      final now = DateTime.now();
+      final DateTime cycleEndDate;
+      if (newCycleStartDate != null) {
+        final normNew = DateTime(
+            newCycleStartDate.year,
+            newCycleStartDate.month,
+            newCycleStartDate.day);
+        cycleEndDate = normNew.subtract(const Duration(days: 1));
+      } else {
+        cycleEndDate = DateTime(now.year, now.month, now.day);
+      }
       final cycleLength =
-          cycleEndDate.difference(_currentCycle!.startDate).inDays + 1;
+          cycleEndDate.difference(startDateNorm).inDays + 1;
 
       final endedCycle = Cycle(
         id: _currentCycle!.id,
@@ -2136,10 +2187,13 @@ class _DashboardScreenState extends State<DashboardScreen>
   void _endPeriod() async {
     if (_currentCycle != null) {
       final updatedCycle = Cycle.fromMap(_currentCycle!.toMap());
+      final now = DateTime.now();
+      // Normaliser à minuit
+      final periodEnd = DateTime(now.year, now.month, now.day);
       final newCycle = Cycle(
         id: updatedCycle.id,
         startDate: updatedCycle.startDate,
-        periodEndDate: DateTime.now(),
+        periodEndDate: periodEnd,
         endDate: updatedCycle.endDate,
         cycleLength: updatedCycle.cycleLength,
         ovulationDate: updatedCycle.ovulationDate,

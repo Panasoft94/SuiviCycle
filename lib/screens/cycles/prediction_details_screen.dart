@@ -42,16 +42,30 @@ class _PredictionDetailsScreenState extends State<PredictionDetailsScreen>
           orElse: () => null,
         );
 
-    // Cycles complétés avec durée valide
-    final completedCycles = cycles
-        .where((c) =>
-            c.cycleLength != null &&
-            c.cycleLength! > 0 &&
-            c.endDate != null)
-        .toList();
+    // Cycles complétés (pour le comptage)
+    final completedCount = cycles.where((c) => c.endDate != null).length;
 
-    // Durées pour l'analyse
-    final lengths = completedCycles.map((c) => c.cycleLength!).toList();
+    // Calculer les durées réelles à partir des dates de début consécutives
+    // (normalisées à minuit) pour éviter les décalages d'heure
+    final sortedCycles = [...cycles]
+      ..sort((a, b) => a.startDate.compareTo(b.startDate));
+    final lengths = <int>[];
+    for (int i = 1; i < sortedCycles.length; i++) {
+      final prev = sortedCycles[i - 1].startDate;
+      final curr = sortedCycles[i].startDate;
+      final prevNorm = DateTime(prev.year, prev.month, prev.day);
+      final currNorm = DateTime(curr.year, curr.month, curr.day);
+      final diff = currNorm.difference(prevNorm).inDays;
+      if (diff >= 21 && diff <= 45) lengths.add(diff);
+    }
+    // Fallback : si pas assez de cycles consécutifs, utiliser cycleLength stocké
+    if (lengths.isEmpty) {
+      for (final c in cycles) {
+        if (c.cycleLength != null && c.cycleLength! >= 21 && c.cycleLength! <= 45) {
+          lengths.add(c.cycleLength!);
+        }
+      }
+    }
 
     // Variabilité (écart-type)
     double? stdDeviation;
@@ -77,7 +91,7 @@ class _PredictionDetailsScreenState extends State<PredictionDetailsScreen>
       settings: settings,
       avgCycleLength: avgCycleLength,
       activeCycle: activeCycle,
-      completedCount: completedCycles.length,
+      completedCount: completedCount,
       cycleLengths: lengths,
       stdDeviation: stdDeviation,
       minLength: minLength,
@@ -192,14 +206,18 @@ class _PredictionDetailsScreenState extends State<PredictionDetailsScreen>
     int? currentDay;
 
     if (data.activeCycle != null) {
-      currentDay =
-          DateTime.now().difference(data.activeCycle!.startDate).inDays + 1;
+      // Normaliser les dates à minuit pour des calculs de jours exacts (Jour 1, pas Jour 0)
+      final start = data.activeCycle!.startDate;
+      final startNorm = DateTime(start.year, start.month, start.day);
+      final now = DateTime.now();
+      final todayNorm = DateTime(now.year, now.month, now.day);
+      currentDay = todayNorm.difference(startNorm).inDays + 1;
       nextOvulation =
-          data.activeCycle!.startDate.add(Duration(days: effectiveLength - 14));
+          startNorm.add(Duration(days: effectiveLength - 14));
       nextPeriod =
-          data.activeCycle!.startDate.add(Duration(days: effectiveLength));
-      fertileStart = nextOvulation.subtract(const Duration(days: 5));
-      fertileEnd = nextOvulation.add(const Duration(days: 1));
+          startNorm.add(Duration(days: effectiveLength));
+      fertileStart = nextOvulation!.subtract(const Duration(days: 5));
+      fertileEnd = nextOvulation!.add(const Duration(days: 1));
     }
 
     return CustomScrollView(
